@@ -3,43 +3,24 @@ import pandas as pd
 import numpy as np
 import joblib
 
-# 1. Konfigurasi Tampilan Web Portal Akademis
+# 1. Konfigurasi Tampilan Web (Lebar Penuh)
 st.set_page_config(
-    page_title="Sistem Informasi Kualitas Air", 
-    page_icon="🔬", 
+    page_title="Sistem Pakar Kualitas Air", 
+    page_icon="🌊", 
     layout="wide"
 )
 
-# --- CSS KUSTOM: GAYA PORTAL AKADEMIS ---
+# --- CSS Kustom untuk Mempercantik Tampilan ---
 st.markdown("""
 <style>
-    /* Latar belakang aplikasi yang bersih */
-    .stApp { background-color: #F8FAFC; }
-    
-    /* Tipografi Judul Gaya Jurnal/Portal Riset */
-    .academic-title { font-size: 34px; font-weight: 700; color: #1E293B; text-align: center; margin-bottom: 2px; font-family: 'Georgia', serif; }
-    .academic-subtitle { font-size: 16px; color: #64748B; text-align: center; margin-bottom: 30px; }
-    
-    /* Kartu Hasil dengan Gaya Minimalis Modern */
-    .academic-card {
-        padding: 25px;
-        border-radius: 12px;
-        color: white;
-        text-align: center;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        margin-bottom: 20px;
-        border: 1px solid rgba(0, 0, 0, 0.05);
-    }
-    
-    /* Merapikan Tabs */
-    .stTabs [data-baseweb="tab-list"] { gap: 15px; }
-    .stTabs [data-baseweb="tab"] { font-size: 15px; font-weight: 600; color: #475569; }
+    .main-title { font-size: 38px; font-weight: bold; color: #1E3A8A; text-align: center; margin-bottom: 5px; }
+    .sub-title { font-size: 18px; color: #6B7280; text-align: center; margin-bottom: 25px; }
+    .card { background-color: #F3F4F6; padding: 20px; border-radius: 10px; margin-bottom: 15px; }
 </style>
 """, unsafe_allow_html=True)
 
-# Header Utama
-st.markdown('<div class="academic-title">Sistem Pendukung Keputusan: Klasifikasi Kualitas Air</div>', unsafe_allow_html=True)
-st.markdown('<div class="academic-subtitle">Implementasi Metode Stacking Ensemble (Random Forest, XGBoost, Gradient Boosting)</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">🌊 Sistem Klasifikasi Kualitas Air</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Integrasi Advanced Machine Learning (Stacking Ensemble: RF, XGB, GB)</div>', unsafe_allow_html=True)
 
 # 2. Fungsi Load Pipeline
 @st.cache_resource
@@ -48,171 +29,130 @@ def load_pipeline():
 
 try:
     artifacts = load_pipeline()
-    st.sidebar.markdown("### 🔍 Status Validasi")
-    st.sidebar.success("Model Terverifikasi (Online)")
+    st.sidebar.success("✅ Model & Instrumen Siap!")
 except Exception as e:
-    st.sidebar.markdown("### 🔍 Status Validasi")
-    st.sidebar.error("Gagal Memuat Pipeline")
+    st.sidebar.error("❌ Gagal memuat file 'water_pipeline.pkl'")
     st.stop()
 
-# Sidebar Deskripsi
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 📖 Informasi Penelitian")
-st.sidebar.info("""
-Aplikasi ini merupakan visualisasi hasil penelitian klasifikasi kualitas air dengan pendekatan **Ensemble Stacking**.
-* **Variabel Input:** 8 Parameter
-* **Metode Preprocessing:** Log-Transform, KNN Imputer, Robust Scaling, RFE.
-""")
-
-# --- MENU MENU UTAMA ---
-tab1, tab2, tab3 = st.tabs(["🎯 Portal Klasifikasi", "📊 Eksplorasi Dataset", "🔬 Dokumen Arsitektur"])
+# --- MENU TAB ---
+# Memecah web menjadi 3 bagian agar tidak terlalu panjang ke bawah
+tab1, tab2, tab3 = st.tabs(["📊 Klasifikasi Data Baru", "📈 Eksplorasi Data", "🧠 Cara Kerja Sistem"])
 
 with tab1:
-    # Membagi layar menjadi 2 kolom (Kiri Input, Kanan Output)
-    col_input, col_output = st.columns([4, 6], gap="large")
+    st.header("📝 Masukkan Parameter Air")
+    st.write("Isi nilai parameter di bawah ini untuk melihat keputusan klasifikasi dari sistem.")
     
-    with col_input:
-        st.markdown("### 📥 Pengukuran Sampel")
-        st.write("Silakan masukkan nilai parameter hasil uji laboratorium:")
-        
-        # Pengelompokan Parameter
-        with st.expander("🌡️ Parameter Fisik & Umum", expanded=True):
-            ph = st.slider("Derajat Keasaman (pH)", 4.0, 10.0, 7.0, 0.1)
-            temp = st.slider("Suhu Air (°C)", -5.0, 45.0, 25.0, 0.5)
-            do = st.slider("Oksigen Terlarut / DO (mg/l)", 0.0, 20.0, 7.5, 0.1)
+    # Form Input dibagi 4 kolom agar rapi dan tidak memakan tempat
+    col1, col2, col3, col4 = st.columns(4)
+    num_cols = artifacts['num_cols']
+    user_inputs = {}
+    
+    for i, col_name in enumerate(num_cols):
+        if i % 4 == 0: current_col = col1
+        elif i % 4 == 1: current_col = col2
+        elif i % 4 == 2: current_col = col3
+        else: current_col = col4
             
-        with st.expander("☣️ Parameter Kimia & Nutrien", expanded=True):
-            ammonia = st.slider("Amonia (mg/l)", 0.0, 50.0, 0.5, 0.01)
-            bod = st.slider("Kebutuhan Oksigen Biokimia / BOD (mg/l)", 0.0, 30.0, 2.0, 0.1)
-            ortho = st.slider("Ortofosfat (mg/l)", 0.0, 10.0, 0.1, 0.01)
-            nitrogen = st.slider("Total Nitrogen (mg/l)", 0.0, 20.0, 1.5, 0.1)
-            nitrate = st.slider("Nitrat (mg/l)", 0.0, 50.0, 1.0, 0.1)
+        with current_col:
+            user_inputs[col_name] = st.number_input(f"{col_name}", value=1.0, step=0.1)
 
-        user_inputs = {
-            'Ammonia (mg/l)': ammonia, 'Biochemical Oxygen Demand (mg/l)': bod,
-            'Dissolved Oxygen (mg/l)': do, 'Orthophosphate (mg/l)': ortho,
-            'pH (ph units)': ph, 'Temperature (cel)': temp,
-            'Nitrogen (mg/l)': nitrogen, 'Nitrate (mg/l)': nitrate
-        }
-
-        st.write("")
-        btn_analisis = st.button("Jalankan Klasifikasi Sistem", type="primary", use_container_width=True)
-
-    with col_output:
-        st.markdown("### 📊 Hasil Komputasi Model")
-        
-        if btn_analisis:
-            with st.spinner("Sistem sedang memproses data..."):
+    # Tombol Eksekusi
+    if st.button("🚀 Jalankan Klasifikasi", type="primary", use_container_width=True):
+        with st.spinner("Sistem sedang menganalisis..."):
+            
+            # --- PREPROCESSING ---
+            df_new = pd.DataFrame([user_inputs])
+            for col in artifacts['skewed_cols']:
+                df_new[col] = np.log1p(df_new[col])
                 
-                # --- PROSES PIPELINE ---
-                df_new = pd.DataFrame([user_inputs])
-                for col in artifacts['skewed_cols']:
-                    df_new[col] = np.log1p(df_new[col])
-                    
-                df_new['BOD_DO_ratio'] = df_new['Biochemical Oxygen Demand (mg/l)'] / (df_new['Dissolved Oxygen (mg/l)'] + 1e-6)
-                df_new['Ammonia_Nitrate_ratio'] = df_new['Ammonia (mg/l)'] / (df_new['Nitrate (mg/l)'] + 1e-6)
-                df_new['Nutrient_sum'] = df_new['Ammonia (mg/l)'] + df_new['Nitrate (mg/l)'] + df_new['Orthophosphate (mg/l)']
-                df_new['Temp_pH_interaction'] = df_new['Temperature (cel)'] * df_new['pH (ph units)']
-                
-                X_imputed = artifacts['imputer'].transform(df_new)
-                X_scaled = artifacts['scaler'].transform(X_imputed)
-                X_mi = X_scaled[:, artifacts['selected_mi']]
-                X_final = artifacts['rfe'].transform(X_mi)
-                
-                # --- PREDIKSI ---
-                pred_stack = artifacts['model'].predict(X_final)
-                label_stack = artifacts['label_encoder'].inverse_transform(pred_stack)[0]
-                
-                rf_model = artifacts['model'].estimators_[0]
-                xgb_model = artifacts['model'].estimators_[1]
-                gb_model = artifacts['model'].estimators_[2]
-                
-                label_rf = artifacts['label_encoder'].inverse_transform(rf_model.predict(X_final))[0]
-                label_xgb = artifacts['label_encoder'].inverse_transform(xgb_model.predict(X_final))[0]
-                label_gb = artifacts['label_encoder'].inverse_transform(gb_model.predict(X_final))[0]
-                
-                # Pengkondisian Warna Jurnal (Kalem/Pastel)
-                theme = {
-                    "Excellent": ("#0F5132", "Sangat Baik", "Sampel air memenuhi seluruh standar baku mutu dengan kategori sempurna."),
-                    "Good": ("#084298", "Baik", "Sampel air dalam batas aman untuk ekosistem dan penggunaan umum."),
-                    "Fair": ("#664D03", "Sedang / Cukup", "Ditemukan penurunan kualitas minor. Disarankan pemantauan berkala."),
-                    "Marginal": ("#842029", "Kurang Baik", "Terdapat parameter yang melampaui ambang batas. Butuh pengolahan lanjutan."),
-                    "Poor": ("#41060A", "Buruk", "Tingkat pencemaran tinggi! Tidak aman digunakan tanpa sterilisasi total.")
-                }
-                color, clean_title, action_plan = theme.get(label_stack, ("#475569", "N/A", "N/A"))
-                
-                # Kartu Hasil dengan Warna Jurnal
-                st.markdown(f"""
-                <div class="academic-card" style="background-color: {color};">
-                    <p style="margin:0; font-size:11px; text-transform:uppercase; letter-spacing:2px; opacity:0.8;">Hasil Konsensus Ensemble</p>
-                    <h1 style="margin:5px 0; font-size:38px; font-weight:800;">{label_stack.upper()}</h1>
-                    <p style="margin:0; font-size:15px; opacity:0.9;">({clean_title})</p>
-                    <hr style="border-color: rgba(255,255,255,0.15); margin:15px auto; width:50%;">
-                    <p style="margin:0; font-size:14px;"><b>Catatan Ilmiah:</b> {action_plan}</p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Transparansi Voting Model
-                st.markdown("##### 🔍 Distribusi Voting Algoritma Dasar")
-                res_col1, res_col2, res_col3 = st.columns(3)
-                with res_col1:
-                    st.metric(label="Random Forest", value=label_rf)
-                with res_col2:
-                    st.metric(label="XGBoost", value=label_xgb)
-                with res_col3:
-                    st.metric(label="Gradient Boosting", value=label_gb)
-                
-                # Analisis Risiko
-                st.markdown("---")
-                st.markdown("##### ⚠️ Deteksi Parameter Anomali")
-                risks = []
-                if do < 4.0: risks.append("Tingkat **Dissolved Oxygen (DO)** terlalu rendah (< 4.0 mg/l). Berisiko pada biota air.")
-                if ammonia > 1.0: risks.append("Kadar **Ammonia** melampaui batas wajar (> 1.0 mg/l). Indikasi kontaminasi limbah.")
-                if bod > 6.0: risks.append("Nilai **BOD** tinggi (> 6.0 mg/l). Menunjukkan tingginya beban pencemaran organik.")
-                
-                if risks:
-                    for risk in risks:
-                        st.warning(risk)
-                else:
-                    st.success("Seluruh parameter kimia kunci berada dalam ambang batas toleransi lingkungan.")
-                
-                # Fitur Download Laporan
-                st.write("")
-                report_text = f"LAPORAN HASIL UJI KLASIFIKASI AI\n\nStatus Akhir: {label_stack} ({clean_title})\n\nHasil Voting:\n- Random Forest: {label_rf}\n- XGBoost: {label_xgb}\n- Gradient Boosting: {label_gb}\n\nCatatan: {action_plan}"
-                st.download_button(label="📥 Unduh Dokumen Hasil (.txt)", data=report_text, file_name="hasil_klasifikasi_air.txt", use_container_width=True)
-        else:
-            st.info("Atur parameter di kolom sebelah kiri dan tekan tombol 'Jalankan Klasifikasi Sistem' untuk melihat hasil kalkulasi.")
+            df_new['BOD_DO_ratio'] = df_new['Biochemical Oxygen Demand (mg/l)'] / (df_new['Dissolved Oxygen (mg/l)'] + 1e-6)
+            df_new['Ammonia_Nitrate_ratio'] = df_new['Ammonia (mg/l)'] / (df_new['Nitrate (mg/l)'] + 1e-6)
+            df_new['Nutrient_sum'] = df_new['Ammonia (mg/l)'] + df_new['Nitrate (mg/l)'] + df_new['Orthophosphate (mg/l)']
+            df_new['Temp_pH_interaction'] = df_new['Temperature (cel)'] * df_new['pH (ph units)']
+            
+            X_imputed = artifacts['imputer'].transform(df_new)
+            X_scaled = artifacts['scaler'].transform(X_imputed)
+            X_mi = X_scaled[:, artifacts['selected_mi']]
+            X_final = artifacts['rfe'].transform(X_mi)
+            
+            # --- TAHAP KLASIFIKASI ---
+            # Model Utama
+            pred_stack = artifacts['model'].predict(X_final)
+            label_stack = artifacts['label_encoder'].inverse_transform(pred_stack)[0]
+            
+            # 3 Algoritma Dasar
+            rf_model = artifacts['model'].estimators_[0]
+            xgb_model = artifacts['model'].estimators_[1]
+            gb_model = artifacts['model'].estimators_[2]
+            
+            label_rf = artifacts['label_encoder'].inverse_transform(rf_model.predict(X_final))[0]
+            label_xgb = artifacts['label_encoder'].inverse_transform(xgb_model.predict(X_final))[0]
+            label_gb = artifacts['label_encoder'].inverse_transform(gb_model.predict(X_final))[0]
+            
+            # --- TAMPILKAN HASIL ---
+            st.markdown("---")
+            
+            # Penentuan Warna Indikator Berdasarkan Hasil
+            colors = {"Excellent": "#10B981", "Good": "#3B82F6", "Fair": "#F59E0B", "Marginal": "#EF4444", "Poor": "#7F1D1D"}
+            bg_color = colors.get(label_stack, "#6B7280")
+            
+            st.markdown(f"""
+            <div style="background-color:{bg_color}; padding:20px; border-radius:10px; text-align:center; color:white;">
+                <h2 style="margin:0;">HASIL REKOMENDASI (STACKING): {label_stack.upper()}</h2>
+                <p style="margin:5px 0 0 0;">Meta-learner menggabungkan keputusan terbaik dari 3 algoritma.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.write("")
+            st.subheader("🔍 Keputusan Masing-Masing Algoritma Dasar")
+            st.write("Sebelum digabung oleh Stacking, ini adalah hasil tebakan dari setiap algoritma:")
+            
+            res_col1, res_col2, res_col3 = st.columns(3)
+            with res_col1:
+                st.metric(label="Random Forest", value=label_rf)
+            with res_col2:
+                st.metric(label="XGBoost", value=label_xgb)
+            with res_col3:
+                st.metric(label="Gradient Boosting", value=label_gb)
 
 with tab2:
-    st.subheader("📈 Analisis Sebaran Data Latih")
-    st.write("Statistik deskriptif file `water_quality.csv` yang Anda simpan di repositori.")
+    st.header("📈 Data Historis Kualitas Air")
+    st.write("Unggah dataset `water_quality.csv` Anda di folder yang sama untuk menampilkan grafik ringkasan di sini.")
     
     try:
         df_csv = pd.read_csv("water_quality.csv", sep=";")
         
-        c1, c2 = st.columns([1, 2])
-        with c1:
-            st.write("")
-            st.metric(label="Total Observasi", value=f"{len(df_csv)} Sampel")
-            st.write("**Frekuensi Kelas Target:**")
-            st.dataframe(df_csv['CCME_WQI'].value_counts(), use_container_width=True)
-            
-        with c2:
-            st.bar_chart(df_csv['CCME_WQI'].value_counts(), color="#0d6efd")
-            
-    except Exception as e:
-        st.warning("Grafik otomatis akan muncul jika Anda mengunggah file `water_quality.csv` di repositori GitHub.")
+        # Visualisasi sederhana distribusi kelas
+        st.subheader("Distribusi Kelas Kualitas Air (Dataset Asli)")
+        st.bar_chart(df_csv['CCME_WQI'].value_counts())
+        
+        # Tampilkan tabel data
+        st.subheader("Preview Dataset")
+        st.dataframe(df_csv.head(10), use_container_width=True)
+    except:
+        st.info("💡 Grafik akan muncul di sini jika file `water_quality.csv` diunggah ke repositori GitHub Anda.")
 
 with tab3:
-    st.subheader("🔬 Metodologi & Kerangka Kerja Sistem")
-    st.write("Penjelasan terstruktur mengenai pengolahan data dan perakitan algoritma.")
+    st.header("🧠 Bagaimana Sistem Ini Bekerja?")
     
-    st.markdown("""
-    Sistem Pendukung Keputusan (SPK) ini menggunakan metode pemodelan tingkat lanjut untuk menjamin keakuratan klasifikasi:
+    col_info1, col_info2 = st.columns(2)
     
-    1. **Pre-Processing Tahap Awal:** Melibatkan transformasi logaritmik untuk menormalkan fitur yang miring (*skewed*), serta menggunakan KNN Imputer untuk mengisi data yang hilang secara cerdas.
-    2. **Penerapan Algoritma Dasar (Base Learners):** Menggunakan 3 algoritma kuat berbasis pohon keputusan secara independen, yaitu *Random Forest*, *XGBoost*, dan *Gradient Boosting*.
-    3. **Meta-Learner (Stacking):** Model Logistic Regression diletakkan di lapisan teratas untuk mengevaluasi prediksi dari ketiga model dasar tersebut. Pendekatan ini menghasilkan satu kesimpulan akhir yang solid dan meminimalkan bias.
-    """)
-    
-    st.success("💡 **Tip Sidang:** Arsitektur ini membuktikan bahwa penggabungan beberapa algoritma (Ensemble) menghasilkan batas keputusan yang jauh lebih baik daripada hanya mengandalkan satu algoritma saja.")
+    with col_info1:
+        st.markdown("""
+        ### 1. Data Preprocessing & Rekayasa Fitur
+        Data yang Anda masukkan tidak langsung dihitung oleh AI. Data tersebut melewati:
+        * **Log Transformation:** Untuk mengatasi data yang tidak simetris (miring).
+        * **Feature Engineering:** Membuat 4 rumus rasio baru untuk memperkuat deteksi.
+        * **KNN Imputer & Scaler:** Menjaga rentang nilai agar adil bagi semua algoritma.
+        """)
+        
+    with col_info2:
+        st.markdown("""
+        ### 2. Metode Stacking Ensemble
+        Sistem ini tidak bergantung pada satu algoritma saja, melainkan menggabungkan:
+        * **Random Forest** (Bagus untuk kestabilan data).
+        * **XGBoost** (Sangat cepat dan akurat).
+        * **Gradient Boosting** (Kuat dalam meminimalkan error).
+        
+        Hasil dari ketiga algoritma di atas dirangkum kembali menggunakan **Logistic Regression** sebagai pengambil keputusan akhir.
+        """)
