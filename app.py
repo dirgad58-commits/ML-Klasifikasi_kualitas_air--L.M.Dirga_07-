@@ -66,7 +66,7 @@ with tab1:
     }
 
     st.write("")
-    if st.button("🚀 Jalankan Analisis Cerdas", type="primary", use_container_width=True):
+    if st.button("🚀 Klasfikasi", type="primary", use_container_width=True):
         with st.spinner("Model Stacking sedang berdiskusi menentukan hasil..."):
             
             # --- PROSES PIPELINE ---
