@@ -18,8 +18,8 @@ st.markdown("""
     .stTabs [data-baseweb="tab-list"] { gap: 20px; }
     .stTabs [data-baseweb="tab"] { font-size: 16px; font-weight: 600; }
     
-    /* Menghilangkan margin berlebih pada area input angka ganda */
-    div[data-testid="stBlock"] { margin-bottom: -10px; }
+    /* Mengurangi jarak antar input agar lebih padat dan rapi */
+    div[data-testid="stVerticalBlock"] > div { margin-bottom: -5px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -43,74 +43,27 @@ tab1, tab2, tab3 = st.tabs(["🎯 Klasifikasi & Analisis", "📊 Statistik Datas
 
 with tab1:
     st.subheader("📥 Input Parameter Sampel Air")
-    st.write("Silakan geser tombol atau ketik langsung angka hasil uji laboratorium secara presisi:")
+    st.write("Silakan ketikkan nilai parameter fisik dan kimia air di bawah ini:")
     st.write("")
     
+    # Membagi input angka menjadi 2 kolom agar seimbang
     col_kiri, col_kanan = st.columns(2, gap="large")
     
-    # --- KOLOM KIRI ---
     with col_kiri:
         st.markdown("##### 🧪 Senyawa Kimia")
-        
-        # 1. Ammonia
-        st.write("**Ammonia (mg/l)**")
-        c1, c2 = st.columns([3, 1])
-        ammonia_val = c2.number_input("ammonia_num", 0.0, 50.0, 0.50, 0.01, label_visibility="collapsed")
-        ammonia = c1.slider("ammonia_slide", 0.0, 50.0, ammonia_val, 0.01, label_visibility="collapsed")
-        st.markdown("---")
-        
-        # 2. BOD
-        st.write("**Biochemical Oxygen Demand (mg/l)**")
-        c1, c2 = st.columns([3, 1])
-        bod_val = c2.number_input("bod_num", 0.0, 30.0, 2.0, 0.1, label_visibility="collapsed")
-        bod = c1.slider("bod_slide", 0.0, 30.0, bod_val, 0.1, label_visibility="collapsed")
-        st.markdown("---")
-        
-        # 3. DO
-        st.write("**Dissolved Oxygen (mg/l)**")
-        c1, c2 = st.columns([3, 1])
-        do_val = c2.number_input("do_num", 0.0, 20.0, 7.5, 0.1, label_visibility="collapsed")
-        do = c1.slider("do_slide", 0.0, 20.0, do_val, 0.1, label_visibility="collapsed")
-        st.markdown("---")
-        
-        # 4. Orthophosphate
-        st.write("**Orthophosphate (mg/l)**")
-        c1, c2 = st.columns([3, 1])
-        ortho_val = c2.number_input("ortho_num", 0.0, 10.0, 0.10, 0.01, label_visibility="collapsed")
-        ortho = c1.slider("ortho_slide", 0.0, 10.0, ortho_val, 0.01, label_visibility="collapsed")
+        ammonia = st.number_input("Ammonia (mg/l)", min_value=0.0, max_value=50.0, value=0.50, step=0.01)
+        bod = st.number_input("Biochemical Oxygen Demand / BOD (mg/l)", min_value=0.0, max_value=30.0, value=2.0, step=0.1)
+        do = st.number_input("Dissolved Oxygen / DO (mg/l)", min_value=0.0, max_value=20.0, value=7.5, step=0.1)
+        ortho = st.number_input("Orthophosphate (mg/l)", min_value=0.0, max_value=10.0, value=0.10, step=0.01)
 
-    # --- KOLOM KANAN ---
     with col_kanan:
         st.markdown("##### 🌡️ Parameter Fisik & Nutrien")
-        
-        # 5. pH
-        st.write("**pH Level**")
-        c1, c2 = st.columns([3, 1])
-        ph_val = c2.number_input("ph_num", 4.0, 10.0, 7.0, 0.1, label_visibility="collapsed")
-        ph = c1.slider("ph_slide", 4.0, 10.0, ph_val, 0.1, label_visibility="collapsed")
-        st.markdown("---")
-        
-        # 6. Temperature
-        st.write("**Temperature (°C)**")
-        c1, c2 = st.columns([3, 1])
-        temp_val = c2.number_input("temp_num", -5.0, 45.0, 25.0, 0.5, label_visibility="collapsed")
-        temp = c1.slider("temp_slide", -5.0, 45.0, temp_val, 0.5, label_visibility="collapsed")
-        st.markdown("---")
-        
-        # 7. Nitrogen
-        st.write("**Nitrogen (mg/l)**")
-        c1, c2 = st.columns([3, 1])
-        nitrogen_val = c2.number_input("nitrogen_num", 0.0, 20.0, 1.5, 0.1, label_visibility="collapsed")
-        nitrogen = c1.slider("nitrogen_slide", 0.0, 20.0, nitrogen_val, 0.1, label_visibility="collapsed")
-        st.markdown("---")
-        
-        # 8. Nitrate
-        st.write("**Nitrate (mg/l)**")
-        c1, c2 = st.columns([3, 1])
-        nitrate_val = c2.number_input("nitrate_num", 0.0, 50.0, 1.0, 0.1, label_visibility="collapsed")
-        nitrate = c1.slider("nitrate_slide", 0.0, 50.0, nitrate_val, 0.1, label_visibility="collapsed")
+        ph = st.number_input("pH Level", min_value=4.0, max_value=10.0, value=7.0, step=0.1)
+        temp = st.number_input("Temperature (°C)", min_value=-5.0, max_value=45.0, value=25.0, step=0.5)
+        nitrogen = st.number_input("Total Nitrogen (mg/l)", min_value=0.0, max_value=20.0, value=1.5, step=0.1)
+        nitrate = st.number_input("Nitrate (mg/l)", min_value=0.0, max_value=50.0, value=1.0, step=0.1)
 
-    # Ambil nilai final (mengutamakan slider yang sudah sinkron dengan number input)
+    # Menampung input dalam dict untuk diproses
     user_inputs = {
         'Ammonia (mg/l)': ammonia, 'Biochemical Oxygen Demand (mg/l)': bod,
         'Dissolved Oxygen (mg/l)': do, 'Orthophosphate (mg/l)': ortho,
@@ -153,6 +106,7 @@ with tab1:
             st.markdown("---")
             st.subheader("📊 Hasil Keputusan Sistem")
             
+            # Pengkondisian Warna & Rekomendasi
             theme = {
                 "Excellent": ("#059669", "Sangat Baik", "Air sangat bersih. Aman digunakan untuk berbagai keperluan tanpa pengolahan khusus."),
                 "Good": ("#2563EB", "Baik", "Air dalam kondisi baik. Sedikit treatment ringan mungkin dibutuhkan untuk konsumsi."),
@@ -162,6 +116,7 @@ with tab1:
             }
             color, clean_title, action_plan = theme.get(label_stack, ("#475569", "Tidak Diketahui", "N/A"))
             
+            # Kartu Output Utama
             st.markdown(f"""
             <div style="background-color:{color}; padding:25px; border-radius:12px; text-align:center; color:white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
                 <p style="margin:0; font-size:14px; text-transform:uppercase; letter-spacing:1px; opacity:0.8;">Status Akhir Sampel</p>
@@ -174,6 +129,7 @@ with tab1:
             st.write("")
             st.write("")
             
+            # Pembanding Algoritma (Menarik untuk Sidang)
             st.markdown("##### 🔍 Transparansi Voting Algoritma Dasar")
             res_col1, res_col2, res_col3 = st.columns(3)
             with res_col1:
@@ -183,6 +139,7 @@ with tab1:
             with res_col3:
                 st.metric(label="Prediksi Gradient Boosting", value=label_gb)
             
+            # Fitur Download Laporan
             st.write("")
             report_text = f"LAPORAN ANALISIS KUALITAS AIR\n\nStatus Akhir: {label_stack}\nSaran: {action_plan}\n\nHasil Voting:\n- RF: {label_rf}\n- XGB: {label_xgb}\n- GB: {label_gb}"
             st.download_button(label="📥 Unduh Laporan (.txt)", data=report_text, file_name="laporan_kualitas_air.txt", mime="text/plain", use_container_width=True)
