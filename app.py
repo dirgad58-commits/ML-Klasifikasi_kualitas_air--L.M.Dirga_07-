@@ -3,17 +3,15 @@ import pandas as pd
 import numpy as np
 import joblib
 
-# Konfigurasi Tampilan Web
-st.set_page_config(page_title="Water Quality Prediction", page_icon="💧", layout="centered")
+st.set_page_config(page_title="Klasifikasi Kualitas Air", page_icon="💧", layout="wide")
 
-st.title("🌊 Sistem Klasifikasi Kualitas Air")
-st.write("Aplikasi ini menggunakan model Ensemble (Stacking) dengan akurasi tinggi untuk memprediksi kategori kualitas air.")
+st.title("🌊 Sistem Klasifikasi Kualitas Air (Multi-Algoritma)")
+st.write("Aplikasi ini menggunakan teknik **Stacking Ensemble** yang menggabungkan 3 algoritma untuk mengklasifikasikan kategori kualitas air.")
 st.markdown("---")
 
 # 1. Load Pipeline (Instrumen + Model)
 @st.cache_resource
 def load_pipeline():
-    # Memuat file pkl yang berisi scaler, imputer, dan model
     return joblib.load('water_pipeline.pkl')
 
 try:
@@ -23,54 +21,72 @@ except Exception as e:
     st.sidebar.error("❌ Gagal memuat file 'water_pipeline.pkl'. Pastikan file tersebut ada di folder yang sama.")
     st.stop()
 
-# 2. Form Input Parameter
+# 2. Form Input Parameter (8 Parameter Asli)
 st.subheader("📝 Masukkan Parameter Air")
-st.write("Silakan isi nilai untuk 8 parameter asli di bawah ini:")
 
 col1, col2 = st.columns(2)
-num_cols = artifacts['num_cols'] # Mengambil list 8 kolom asli dari pkl
+num_cols = artifacts['num_cols'] # 8 nama kolom asli
 user_inputs = {}
 
-# Membagi form menjadi 2 kolom agar cantik
 for i, col_name in enumerate(num_cols):
     with col1 if i % 2 == 0 else col2:
-        # Default value diset ke 1.0 untuk mencegah pembagian dengan nol di feature engineering
         user_inputs[col_name] = st.number_input(f"{col_name}", value=1.0, step=0.1)
 
 # 3. Tombol Eksekusi
-if st.button("Prediksi Sekarang", type="primary"):
+if st.button("Klasifikasikan Kualitas Air", type="primary"):
     with st.spinner("Sedang memproses data..."):
         
-        # --- TAHAP PREPROCESSING (Meniru persis alur training Anda) ---
-        
-        # A. Ubah input user menjadi DataFrame
+        # --- TAHAP PREPROCESSING ---
         df_new = pd.DataFrame([user_inputs])
         
-        # B. Log Transform pada kolom yang miring
+        # Log Transform
         for col in artifacts['skewed_cols']:
             df_new[col] = np.log1p(df_new[col])
             
-        # C. Feature Engineering (Membuat 4 fitur rasio baru)
+        # Feature Engineering (Rasio)
         df_new['BOD_DO_ratio'] = df_new['Biochemical Oxygen Demand (mg/l)'] / (df_new['Dissolved Oxygen (mg/l)'] + 1e-6)
         df_new['Ammonia_Nitrate_ratio'] = df_new['Ammonia (mg/l)'] / (df_new['Nitrate (mg/l)'] + 1e-6)
         df_new['Nutrient_sum'] = df_new['Ammonia (mg/l)'] + df_new['Nitrate (mg/l)'] + df_new['Orthophosphate (mg/l)']
         df_new['Temp_pH_interaction'] = df_new['Temperature (cel)'] * df_new['pH (ph units)']
         
-        # D. Imputasi & Scaling
+        # Imputasi & Scaling
         X_imputed = artifacts['imputer'].transform(df_new)
         X_scaled = artifacts['scaler'].transform(X_imputed)
         
-        # E. Seleksi Fitur (Mutual Information & RFE)
+        # Seleksi Fitur
         X_mi = X_scaled[:, artifacts['selected_mi']]
         X_final = artifacts['rfe'].transform(X_mi)
         
-        # --- TAHAP PREDIKSI ---
-        pred_encoded = artifacts['model'].predict(X_final)
+        # --- TAHAP KLASIFIKASI ---
+        # 1. Hasil Model Utama (Stacking)
+        pred_stack = artifacts['model'].predict(X_final)
+        label_stack = artifacts['label_encoder'].inverse_transform(pred_stack)[0]
         
-        # Decode kembali angka (0,1,2..) menjadi label teks (Good, Excellent..)
-        pred_label = artifacts['label_encoder'].inverse_transform(pred_encoded)
+        # 2. Hasil Ekstraksi 3 Algoritma di dalam Stacking
+        # Kita ambil estimator yang sudah dilatih di dalam model stacking
+        rf_model = artifacts['model'].estimators_[0]
+        xgb_model = artifacts['model'].estimators_[1]
+        gb_model = artifacts['model'].estimators_[2]
+        
+        # Prediksi masing-masing algoritma
+        label_rf = artifacts['label_encoder'].inverse_transform(rf_model.predict(X_final))[0]
+        label_xgb = artifacts['label_encoder'].inverse_transform(xgb_model.predict(X_final))[0]
+        label_gb = artifacts['label_encoder'].inverse_transform(gb_model.predict(X_final))[0]
         
         # --- TAMPILKAN HASIL ---
         st.markdown("---")
-        st.subheader("📊 Hasil Prediksi")
-        st.success(f"Status Kualitas Air: **{pred_label[0]}**")
+        st.subheader("📊 Hasil Klasifikasi")
+        
+        # Menampilkan Hasil Utama
+        st.info(f"💡 **Rekomendasi Akhir (Stacking Ensemble):** Kualitas Air masuk dalam kategori **{label_stack}**")
+        
+        st.markdown("### 🔍 Perbandingan Keputusan Algoritma:")
+        # Membuat 3 kolom untuk menampilkan hasil tiap algoritma
+        res_col1, res_col2, res_col3 = st.columns(3)
+        
+        with res_col1:
+            st.metric(label="Klasifikasi Random Forest", value=label_rf)
+        with res_col2:
+            st.metric(label="Klasifikasi XGBoost", value=label_xgb)
+        with res_col3:
+            st.metric(label="Klasifikasi Gradient Boosting", value=label_gb)
