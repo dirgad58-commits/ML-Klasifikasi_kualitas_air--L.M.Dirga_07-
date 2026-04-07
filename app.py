@@ -22,7 +22,7 @@ Pilih model machine learning dan masukkan nilai parameter di bawah.
 # Load model dengan caching
 @st.cache_resource
 def load_models():
-    model_path = "saved_models/all_models_components.pkl"
+    model_path = "all_models_components.pkl"
     if not os.path.exists(model_path):
         st.error(f"❌ File model tidak ditemukan di '{model_path}'. Pastikan file sudah diupload.")
         st.stop()
