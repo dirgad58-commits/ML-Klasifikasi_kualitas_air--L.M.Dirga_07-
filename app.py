@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+from collections import Counter
 
 # 1. Konfigurasi Tampilan Web Premium
 st.set_page_config(
@@ -24,18 +25,23 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="main-title">🌊 Dashboard Klasifikasi Kualitas Air</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">Sistem Cerdas Pendukung Keputusan Berbasis Stacking Ensemble (RF, XGB, GB)</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Sistem Cerdas Pendukung Keputusan Berbasis Machine Learning (RF, XGB, GB)</div>', unsafe_allow_html=True)
 
-# 2. Fungsi Load Pipeline (Model + Instrumen)
+# 2. Fungsi Load Components (Model + Pipeline)
 @st.cache_resource
-def load_pipeline():
-    return joblib.load('water_pipeline.pkl')
+def load_models():
+    # Menyesuaikan dengan nama file model yang baru
+    return joblib.load('all_models_components.pkl')
 
 try:
-    artifacts = load_pipeline()
-    st.sidebar.success("🟢 AI System & Instrumen Online!")
+    components = load_models()
+    rf_pipe = components['random_forest']
+    xgb_pipe = components['xgboost']
+    gb_pipe = components['gradient_boosting']
+    le = components['label_encoder']
+    st.sidebar.success("🟢 AI System & Pipeline Online!")
 except Exception as e:
-    st.sidebar.error("🔴 File 'water_pipeline.pkl' tidak ditemukan!")
+    st.sidebar.error("🔴 File 'all_models_components.pkl' tidak ditemukan!")
     st.stop()
 
 # --- MENU TAB ---
@@ -58,12 +64,12 @@ with tab1:
 
     with col_kanan:
         st.markdown("##### 🌡️ Parameter Fisik & Nutrien")
-        ph = st.number_input("pH Level", min_value=4.0, max_value=10.0, value=7.0, step=0.1)
+        ph = st.number_input("pH Level", min_value=4.0, max_value=14.0, value=7.0, step=0.1)
         temp = st.number_input("Temperature (°C)", min_value=-5.0, max_value=45.0, value=25.0, step=0.5)
-        nitrogen = st.number_input("Total Nitrogen (mg/l)", min_value=0.0, max_value=20.0, value=1.5, step=0.1)
-        nitrate = st.number_input("Nitrate (mg/l)", min_value=0.0, max_value=50.0, value=1.0, step=0.1)
+        nitrogen = st.number_input("Total Nitrogen (mg/l)", min_value=0.0, max_value=50.0, value=1.5, step=0.1)
+        nitrate = st.number_input("Nitrate (mg/l)", min_value=0.0, max_value=100.0, value=1.0, step=0.1)
 
-    # Menampung input dalam dict untuk diproses
+    # Menampung input dalam dict. PASTIKAN nama kolom sama persis dengan dataset
     user_inputs = {
         'Ammonia (mg/l)': ammonia, 'Biochemical Oxygen Demand (mg/l)': bod,
         'Dissolved Oxygen (mg/l)': do, 'Orthophosphate (mg/l)': ortho,
@@ -73,34 +79,27 @@ with tab1:
 
     st.write("")
     if st.button("🚀 Klasifikasi", type="primary", use_container_width=True):
-        with st.spinner("Model Stacking sedang berdiskusi menentukan hasil..."):
+        with st.spinner("Model sedang menganalisis data..."):
             
-            # --- PROSES PIPELINE ---
+            # Konversi input ke DataFrame
             df_new = pd.DataFrame([user_inputs])
-            for col in artifacts['skewed_cols']:
-                df_new[col] = np.log1p(df_new[col])
-                
-            df_new['BOD_DO_ratio'] = df_new['Biochemical Oxygen Demand (mg/l)'] / (df_new['Dissolved Oxygen (mg/l)'] + 1e-6)
-            df_new['Ammonia_Nitrate_ratio'] = df_new['Ammonia (mg/l)'] / (df_new['Nitrate (mg/l)'] + 1e-6)
-            df_new['Nutrient_sum'] = df_new['Ammonia (mg/l)'] + df_new['Nitrate (mg/l)'] + df_new['Orthophosphate (mg/l)']
-            df_new['Temp_pH_interaction'] = df_new['Temperature (cel)'] * df_new['pH (ph units)']
-            
-            X_imputed = artifacts['imputer'].transform(df_new)
-            X_scaled = artifacts['scaler'].transform(X_imputed)
-            X_mi = X_scaled[:, artifacts['selected_mi']]
-            X_final = artifacts['rfe'].transform(X_mi)
             
             # --- PREDIKSI MULTI-ALGORITMA ---
-            pred_stack = artifacts['model'].predict(X_final)
-            label_stack = artifacts['label_encoder'].inverse_transform(pred_stack)[0]
+            # Model Pipeline di .pkl sudah otomatis menangani missing values & feature selection
+            pred_rf = rf_pipe.predict(df_new)
+            pred_xgb = xgb_pipe.predict(df_new)
+            pred_gb = gb_pipe.predict(df_new)
             
-            rf_model = artifacts['model'].estimators_[0]
-            xgb_model = artifacts['model'].estimators_[1]
-            gb_model = artifacts['model'].estimators_[2]
+            # Decode label dari angka kembali ke teks (Excellent, Good, dsb)
+            label_rf = le.inverse_transform(pred_rf)[0]
+            label_xgb = le.inverse_transform(pred_xgb)[0]
+            label_gb = le.inverse_transform(pred_gb)[0]
             
-            label_rf = artifacts['label_encoder'].inverse_transform(rf_model.predict(X_final))[0]
-            label_xgb = artifacts['label_encoder'].inverse_transform(xgb_model.predict(X_final))[0]
-            label_gb = artifacts['label_encoder'].inverse_transform(gb_model.predict(X_final))[0]
+            # --- KONSENSUS (MAJORITY VOTING) ---
+            # Mengambil keputusan akhir berdasarkan suara terbanyak dari 3 model
+            votes = [label_rf, label_xgb, label_gb]
+            vote_counts = Counter(votes)
+            label_final = vote_counts.most_common(1)[0][0]
             
             # --- TAMPILAN DASHBOARD HASIL ---
             st.markdown("---")
@@ -114,13 +113,13 @@ with tab1:
                 "Marginal": ("#DC2626", "Kurang Baik", "Air tercemar ringan-sedang. Butuh penanganan sebelum digunakan untuk aktivitas."),
                 "Poor": ("#7F1D1D", "Buruk", "Kondisi air kritis! Sangat berbahaya jika langsung digunakan. Butuh sterilisasi penuh.")
             }
-            color, clean_title, action_plan = theme.get(label_stack, ("#475569", "Tidak Diketahui", "N/A"))
+            color, clean_title, action_plan = theme.get(label_final, ("#475569", "Tidak Diketahui", "N/A"))
             
             # Kartu Output Utama
             st.markdown(f"""
             <div style="background-color:{color}; padding:25px; border-radius:12px; text-align:center; color:white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
-                <p style="margin:0; font-size:14px; text-transform:uppercase; letter-spacing:1px; opacity:0.8;">Status Akhir Sampel</p>
-                <h1 style="margin:5px 0 10px 0; font-size:40px; font-weight:800;">{label_stack.upper()} ({clean_title})</h1>
+                <p style="margin:0; font-size:14px; text-transform:uppercase; letter-spacing:1px; opacity:0.8;">Status Akhir Konsensus</p>
+                <h1 style="margin:5px 0 10px 0; font-size:40px; font-weight:800;">{label_final.upper()} ({clean_title})</h1>
                 <hr style="border-color: rgba(255,255,255,0.2); margin:15px auto; width:50%;">
                 <p style="margin:0; font-size:16px;"><b>Rekomendasi Tindakan:</b> {action_plan}</p>
             </div>
@@ -129,7 +128,7 @@ with tab1:
             st.write("")
             st.write("")
             
-            # Pembanding Algoritma (Menarik untuk Sidang)
+            # Pembanding Algoritma
             st.markdown("##### 🔍 Transparansi Voting Algoritma Dasar")
             res_col1, res_col2, res_col3 = st.columns(3)
             with res_col1:
@@ -141,15 +140,17 @@ with tab1:
             
             # Fitur Download Laporan
             st.write("")
-            report_text = f"LAPORAN ANALISIS KUALITAS AIR\n\nStatus Akhir: {label_stack}\nSaran: {action_plan}\n\nHasil Voting:\n- RF: {label_rf}\n- XGB: {label_xgb}\n- GB: {label_gb}"
+            report_text = f"LAPORAN ANALISIS KUALITAS AIR\n\nStatus Akhir: {label_final}\nSaran: {action_plan}\n\nHasil Voting:\n- RF: {label_rf}\n- XGB: {label_xgb}\n- GB: {label_gb}"
             st.download_button(label="📥 Unduh Laporan (.txt)", data=report_text, file_name="laporan_kualitas_air.txt", mime="text/plain", use_container_width=True)
 
 with tab2:
     st.subheader("📈 Analisis Sebaran Data Latih")
-    st.write("Visualisasi ini membaca file `water_quality.csv` yang Anda lampirkan di repositori.")
+    # Anda bisa mengganti nama file csv di bawah ini dengan Canada_dataset.csv jika itu yang digunakan
+    dataset_name = "Canada_dataset.csv" 
+    st.write(f"Visualisasi ini membaca file `{dataset_name}` yang Anda lampirkan di repositori.")
     
     try:
-        df_csv = pd.read_csv("water_quality.csv", sep=";")
+        df_csv = pd.read_csv(dataset_name, sep=";")
         
         c1, c2 = st.columns([1, 2])
         with c1:
@@ -162,20 +163,20 @@ with tab2:
             st.bar_chart(df_csv['CCME_WQI'].value_counts())
             
     except Exception as e:
-        st.warning("Unggah file `water_quality.csv` di GitHub Anda agar visualisasi ini menyala secara dinamis.")
+        st.warning(f"Unggah file `{dataset_name}` di GitHub Anda agar visualisasi ini menyala secara dinamis.")
 
 with tab3:
-    st.subheader("🧠 Mengapa Menggunakan Stacking Ensemble?")
-    st.write("Halaman ini menjelaskan kecanggihan sistem di balik layar untuk meyakinkan audiens atau penguji Anda.")
+    st.subheader("🧠 Mengapa Menggunakan Pendekatan Ini?")
+    st.write("Sistem ini terintegrasi langsung dengan Pipeline Scikit-Learn yang mengotomatisasi pemrosesan data mentah.")
     
     col_flow1, col_flow2, col_flow3 = st.columns(3)
     
     with col_flow1:
         st.markdown("""
         <div style="background-color:#F8FAFC; padding:20px; border-radius:10px; border:1px solid #E2E8F0;">
-            <h4>🛠️ Step 1: Pre-Processing</h4>
+            <h4>🛠️ Step 1: Automated Pre-Processing</h4>
             <p style="font-size:14px; color:#64748B;">
-            Input pengguna tidak langsung diproses. AI melakukan <i>Log-transformation</i> untuk meredakan fitur yang miring, diikuti standarisasi nilai agar rentang angka adil.
+            Input dimasukkan ke dalam Pipeline. Imputasi data kosong diselesaikan otomatis, dan fitur yang paling berdampak disaring menggunakan <i>Mutual Information</i>.
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -183,9 +184,9 @@ with tab3:
     with col_flow2:
         st.markdown("""
         <div style="background-color:#F8FAFC; padding:20px; border-radius:10px; border:1px solid #E2E8F0;">
-            <h4>🎭 Step 2: Klasifikasi Paralel</h4>
+            <h4>🎭 Step 2: Paralel Klasifikasi</h4>
             <p style="font-size:14px; color:#64748B;">
-            Data diumpankan ke 3 algoritma hebat secara mandiri: Random Forest, XGBoost, dan Gradient Boosting. Masing-masing mengeluarkan label pilihannya.
+            Data diumpankan ke 3 algoritma hebat secara mandiri: Random Forest, XGBoost, dan Gradient Boosting untuk menghindari bias satu model.
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -193,9 +194,9 @@ with tab3:
     with col_flow3:
         st.markdown("""
         <div style="background-color:#F8FAFC; padding:20px; border-radius:10px; border:1px solid #E2E8F0;">
-            <h4>🏆 Step 3: Meta-Learner</h4>
+            <h4>🏆 Step 3: Majority Voting</h4>
             <p style="font-size:14px; color:#64748B;">
-            Logistic Regression bertindak sebagai juri (Meta-Learner). Ia tidak melakukan voting mayoritas biasa, tetapi mempelajari bobot keakuratan 3 model di atas untuk memberikan keputusan mutlak.
+            Hasil akhir ditentukan dari konsensus (suara terbanyak) ketiga algoritma tersebut untuk memberikan keputusan mutlak yang presisi dan stabil.
             </p>
         </div>
         """, unsafe_allow_html=True)
