@@ -31,7 +31,7 @@ def load_models():
     # Menyesuaikan path berdasarkan log output Anda (terkadang tersimpan di dalam folder saved_models)
     # Jika file pkl dipindah ke luar, ubah path di bawah ini menjadi 'all_models_components.pkl'
     try:
-        return joblib.load('saved_models/all_models_components.pkl')
+        return joblib.load('all_models_components.pkl')
     except FileNotFoundError:
         return joblib.load('all_models_components.pkl')
 
