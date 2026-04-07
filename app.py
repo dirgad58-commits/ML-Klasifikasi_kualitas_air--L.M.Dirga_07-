@@ -3,46 +3,55 @@ import joblib
 import pandas as pd
 import numpy as np
 
-# --- SETTING HALAMAN ---
-st.set_page_config(page_title="Water Quality Classifier", page_icon="💧")
+# --- 1. KONFIGURASI HALAMAN ---
+st.set_page_config(page_title="Klasifikasi Kualitas Air", page_icon="💧", layout="centered")
 
-# --- LOAD MODEL ---
+# Custom CSS untuk tampilan lebih rapi
+st.markdown("""
+    <style>
+    .main { background-color: #f5f7f9; }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007BFF; color: white; }
+    .stNumberInput { margin-bottom: -10px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 2. FUNGSI LOAD MODEL ---
 @st.cache_resource
-def load_model():
+def load_classifier():
     try:
+        # Memuat file pkl
         data = joblib.load('all_models_components.pkl')
-        # Pastikan mengambil model random_forest dari dictionary
+        # Mengambil model Random Forest (Klasifikasi) dari dictionary
         return data['random_forest']
     except Exception as e:
-        st.error(f"Gagal memuat model klasifikasi: {e}")
+        st.error(f"Gagal memuat model: {e}")
         return None
 
-model = load_model()
+model = load_classifier()
 
-# --- ANTARMUKA PENGGUNA (UI) ---
-st.title("🛡️ Klasifikasi Kualitas Air")
-st.markdown("""
-Aplikasi ini mengelompokkan sampel air ke dalam kategori tertentu berdasarkan parameter laboratorium.
-""")
+# --- 3. ANTARMUKA PENGGUNA ---
+st.title("🌊 Sistem Klasifikasi Kualitas Air")
+st.info("Masukkan parameter hasil laboratorium untuk menentukan kategori kualitas air.")
 
-# Input dibuat sederhana dalam satu blok agar mudah diisi
-st.subheader("📊 Masukan Parameter Lab")
-col1, col2 = st.columns(2)
+# Input dibagi menjadi dua kolom agar ringkas
+with st.container():
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        ammonia = st.number_input("Ammonia (mg/l)", value=0.10, step=0.01)
+        bod = st.number_input("BOD (mg/l)", value=2.00, step=0.01)
+        do = st.number_input("Dissolved Oxygen (mg/l)", value=6.50, step=0.01)
+        ortho = st.number_input("Orthophosphate (mg/l)", value=0.05, step=0.01)
+        
+    with col2:
+        ph = st.number_input("pH (Derajat Keasaman)", value=7.00, min_value=0.0, max_value=14.0, step=0.1)
+        temp = st.number_input("Suhu (°C)", value=28.0, step=0.1)
+        nitrogen = st.number_input("Total Nitrogen (mg/l)", value=1.50, step=0.01)
+        nitrate = st.number_input("Nitrate (mg/l)", value=0.80, step=0.01)
 
-with col1:
-    ammonia = st.number_input("Ammonia (mg/l)", value=0.10, format="%.2f")
-    bod = st.number_input("BOD (mg/l)", value=2.00, format="%.2f")
-    do = st.number_input("Dissolved Oxygen (mg/l)", value=6.50, format="%.2f")
-    ortho = st.number_input("Orthophosphate (mg/l)", value=0.05, format="%.2f")
-
-with col2:
-    ph = st.number_input("pH Air", value=7.00, min_value=0.0, max_value=14.0, format="%.2f")
-    temp = st.number_input("Suhu (°C)", value=28.0, format="%.1f")
-    nitrogen = st.number_input("Total Nitrogen (mg/l)", value=1.50, format="%.2f")
-    nitrate = st.number_input("Nitrate (mg/l)", value=0.80, format="%.2f")
-
-# Membuat Dataframe sesuai urutan fitur model
-input_data = pd.DataFrame({
+# Menyiapkan data untuk klasifikasi
+# Nama kolom ini disesuaikan persis dengan isi file .pkl Anda
+input_features = pd.DataFrame({
     'Ammonia (mg/l)': [ammonia],
     'Biochemical Oxygen Demand (mg/l)': [bod],
     'Dissolved Oxygen (mg/l)': [do],
@@ -53,30 +62,32 @@ input_data = pd.DataFrame({
     'Nitrate (mg/l)': [nitrate]
 })
 
-st.divider()
+st.markdown("---")
 
-# --- LOGIKA KLASIFIKASI ---
-if st.button("JALANKAN KLASIFIKASI", type="primary", use_container_width=True):
-    if model:
+# --- 4. PROSES KLASIFIKASI ---
+if st.button("CEK KLASIFIKASI SEKARANG"):
+    if model is not None:
         try:
-            # Menggunakan .predict() untuk mendapatkan label kelas
-            hasil_kelas = model.predict(input_data)[0]
+            # Melakukan klasifikasi
+            prediction = model.predict(input_features)
+            label = prediction[0]
             
-            st.subheader("📍 Hasil Analisis Kategori:")
+            st.subheader("🎯 Hasil Klasifikasi:")
             
-            # Menampilkan hasil berdasarkan kategori (Klasifikasi)
-            # Catatan: Sesuaikan keterangan di bawah dengan urutan label asli Anda
-            if hasil_kelas == 0:
-                st.success(f"### KATEGORI: BAIK (Label {hasil_kelas})")
-                st.write("Air memenuhi syarat kualitas dan aman bagi ekosistem.")
-            elif hasil_kelas == 1:
-                st.warning(f"### KATEGORI: TERCEMAR RINGAN (Label {hasil_kelas})")
-                st.write("Ditemukan kontaminasi ringan, diperlukan pemantauan rutin.")
+            # Logika penentuan label (Sesuaikan dengan dataset Anda)
+            if label == 0:
+                st.success(f"### KELAS {label}: KUALITAS BAIK")
+                st.balloons()
+            elif label == 1:
+                st.warning(f"### KELAS {label}: TERCEMAR RINGAN")
             else:
-                st.error(f"### KATEGORI: TERCEMAR BERAT (Label {hasil_kelas})")
-                st.write("Kualitas air buruk! Berisiko bagi kesehatan dan lingkungan.")
-
+                st.error(f"### KELAS {label}: TERCEMAR BERAT")
+                
         except Exception as e:
-            st.error(f"Terjadi kesalahan saat memproses data: {e}")
+            st.error(f"Terjadi kesalahan saat pemrosesan: {e}")
+            st.info("Tips: Pastikan versi scikit-learn di GitHub sama dengan saat training.")
     else:
-        st.error("Model tidak terdeteksi. Periksa file .pkl Anda.")
+        st.error("Model tidak tersedia.")
+
+# Footer
+st.markdown("<br><hr><center>Aplikasi Klasifikasi Kualitas Air v1.0</center>", unsafe_allow_html=True)
