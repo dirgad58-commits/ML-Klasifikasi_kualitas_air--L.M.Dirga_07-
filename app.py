@@ -4,83 +4,59 @@ import pandas as pd
 import numpy as np
 from sklearn.impute import SimpleImputer
 
-# --- 1. KONFIGURASI HALAMAN ---
-st.set_page_config(
-    page_title="Canada Water Quality Classifier",
-    page_icon="🇨🇦",
-    layout="wide"
-)
+# --- KONFIGURASI HALAMAN ---
+st.set_page_config(page_title="Canada Water Quality AI", page_icon="🇨🇦")
 
-# --- 2. FUNGSI LOAD & FIX MODEL ---
 @st.cache_resource
-def load_and_prepare_model():
+def load_and_fix_model():
     try:
-        # Load file gabungan dari folder saved_models (sesuai script Anda)
-        # Jika file berada di root, ganti menjadi 'all_models_components.pkl'
+        # Load file pkl
         data = joblib.load('all_models_components.pkl')
         
-        # Simpan komponen ke dalam variabel
+        # Daftar model yang tersedia di file Anda
         models_dict = {
-            'Gradient Boosting (Best)': data['gradient_boosting'],
+            'Gradient Boosting (Terbaik)': data['gradient_boosting'],
             'XGBoost': data['xgboost'],
             'Random Forest': data['random_forest']
         }
         
-        # Perbaikan Otomatis untuk error _fill_dtype
-        # Kami mengganti imputer lama dengan yang baru di setiap pipeline
+        # FIX: Ganti imputer yang rusak dengan yang baru untuk setiap model
         for name in models_dict:
             new_imputer = SimpleImputer(strategy='median')
             models_dict[name].steps[0] = ('imputer', new_imputer)
             
-        return models_dict, data['label_encoder'], data['all_feature_names']
+        return models_dict, data['label_encoder']
     except Exception as e:
-        st.error(f"Gagal memuat komponen model: {e}")
-        return None, None, None
+        st.error(f"Gagal memuat model: {e}")
+        return None, None
 
-models, le, feature_names = load_and_prepare_model()
+models, le = load_and_fix_model()
 
-if models:
-    # --- 3. SIDEBAR ---
-    st.sidebar.header("Konfigurasi Model")
-    selected_model_name = st.sidebar.selectbox("Pilih Algoritma", list(models.keys()))
+if models and le:
+    st.title("🌊 Klasifikasi Kualitas Air Canada")
+    
+    # Pilih Model
+    selected_model_name = st.selectbox("Pilih Model Algoritma:", list(models.keys()))
     model_pipeline = models[selected_model_name]
-    
-    st.sidebar.divider()
-    st.sidebar.success(f"Akurasi Model: {selected_model_name}")
-    st.sidebar.write("- Excellent: Kualitas Sempurna")
-    st.sidebar.write("- Good: Kualitas Layak")
-    st.sidebar.write("- Fair: Cukup")
-    st.sidebar.write("- Marginal: Terancam")
-    st.sidebar.write("- Poor: Buruk/Tercemar")
 
-    # --- 4. TAMPILAN UTAMA ---
-    st.title("🇨🇦 Canada Water Quality Index (CCME WQI)")
-    st.markdown("Klasifikasi multi-level kualitas air berdasarkan parameter kimia dan fisik.")
-
-    # --- 5. INPUT DATA (NILAI DEFAULT: GOOD) ---
-    st.subheader("📝 Masukkan Nilai Parameter")
+    # --- INPUT DATA (Default: Kategori GOOD) ---
+    st.subheader("📝 Input Parameter Air")
+    col1, col2 = st.columns(2)
     
-    with st.container():
-        col1, col2, col3 = st.columns(3)
+    with col1:
+        ammonia = st.number_input("Ammonia (mg/l)", value=0.03)
+        bod = st.number_input("BOD (mg/l)", value=1.3)
+        do = st.number_input("Dissolved Oxygen (mg/l)", value=8.1)
+        ortho = st.number_input("Orthophosphate (mg/l)", value=0.01)
         
-        with col1:
-            # Nilai default disesuaikan agar menghasilkan kategori 'Good'
-            ammonia = st.number_input("Ammonia (mg/l)", value=0.03, format="%.4f")
-            bod = st.number_input("BOD (mg/l)", value=1.30, format="%.2f")
-            do = st.number_input("Dissolved Oxygen (mg/l)", value=8.10, format="%.2f")
-            
-        with col2:
-            ortho = st.number_input("Orthophosphate (mg/l)", value=0.01, format="%.4f")
-            ph = st.number_input("pH (ph units)", value=8.0, format="%.1f")
-            temp = st.number_input("Temperature (cel)", value=10.0, format="%.2f")
-            
-        with col3:
-            nitrogen = st.number_input("Nitrogen (mg/l)", value=0.34, format="%.4f")
-            nitrate = st.number_input("Nitrate (mg/l)", value=1.17, format="%.4f")
+    with col2:
+        ph = st.number_input("pH (ph units)", value=8.0)
+        temp = st.number_input("Temperature (cel)", value=10.0)
+        nitrogen = st.number_input("Nitrogen (mg/l)", value=0.34)
+        nitrate = st.number_input("Nitrate (mg/l)", value=1.17)
 
-    # Mapping input ke DataFrame
-    # Pastikan urutan dan nama kolom sama persis dengan 'all_feature_names'
-    input_data = pd.DataFrame({
+    # DataFrame Input - PASTIKAN nama kolom sama persis dengan dataset asli
+    input_df = pd.DataFrame({
         'Ammonia (mg/l)': [ammonia],
         'Biochemical Oxygen Demand (mg/l)': [bod],
         'Dissolved Oxygen (mg/l)': [do],
@@ -93,39 +69,36 @@ if models:
 
     st.divider()
 
-    # --- 6. EKSEKUSI KLASIFIKASI ---
-    if st.button("PROSES KLASIFIKASI", type="primary", use_container_width=True):
+    # --- TOMBOL KLASIFIKASI ---
+    if st.button("JALANKAN KLASIFIKASI", type="primary", use_container_width=True):
         try:
-            # Fit imputer baru dengan data input saat ini untuk menghindari error _fill_dtype
-            model_pipeline.named_steps['imputer'].fit(input_data)
+            # FIX ERROR 'X': Panggil predict langsung dengan input_df sebagai argumen pertama
+            # Fit imputer baru dulu agar mengenali format data
+            model_pipeline.named_steps['imputer'].fit(input_df)
             
-            # Prediksi
-            prediction = model_pipeline.predict(input_df=input_data if 'input_df' not in locals() else input_data)
-            # Hasil prediksi (misal: [2]) diubah menjadi teks (misal: 'Good')
-            result_text = le.inverse_transform(prediction)[0]
+            # Melakukan prediksi
+            prediction = model_pipeline.predict(input_df) # Ini adalah X yang diminta
             
-            # Tampilan Hasil
-            st.subheader("🎯 Hasil Klasifikasi:")
+            # Mengubah hasil angka ke label teks (Excellent/Good/dll)
+            label = le.inverse_transform(prediction)[0]
             
-            if result_text in ['Excellent', 'Good']:
-                st.success(f"## Kualitas Air: {result_text}")
+            # Menampilkan Hasil
+            if label in ['Excellent', 'Good']:
+                st.success(f"### HASIL: {label}")
                 st.balloons()
-            elif result_text == 'Fair':
-                st.info(f"## Kualitas Air: {result_text}")
+            elif label == 'Fair':
+                st.info(f"### HASIL: {label}")
             else:
-                st.error(f"## Kualitas Air: {result_text}")
+                st.warning(f"### HASIL: {label}")
 
-            # Tampilkan Probabilitas jika model mendukung
+            # Probabilitas (Jika tersedia)
             try:
-                prob = model_pipeline.predict_proba(input_data)
-                confidence = np.max(prob) * 100
-                st.write(f"Tingkat keyakinan model: **{confidence:.2f}%**")
+                prob = model_pipeline.predict_proba(input_df)
+                st.write(f"Tingkat Keyakinan: **{np.max(prob)*100:.2f}%**")
             except:
                 pass
-
+                
         except Exception as e:
-            st.error(f"Terjadi kesalahan saat pemrosesan: {e}")
-            st.info("Pastikan semua kolom input terisi dengan angka yang valid.")
-
+            st.error(f"Kesalahan saat pemrosesan: {e}")
 else:
-    st.warning("⚠️ Menunggu file 'all_models_components.pkl' diunggah...")
+    st.warning("Pastikan file 'all_models_components.pkl' sudah ada di folder aplikasi.")
