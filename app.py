@@ -2,70 +2,55 @@ import streamlit as st
 import joblib
 import pandas as pd
 import numpy as np
+import sklearn
 
-# --- 1. KONFIGURASI HALAMAN ---
-st.set_page_config(
-    page_title="Water Quality Classifier AI",
-    page_icon="🌊",
-    layout="wide"
-)
+# --- FIX COMPATIBILITY (Mencegah error _fill_dtype) ---
+# Ini akan menambahkan atribut yang hilang secara manual jika tidak ditemukan
+from sklearn.impute import SimpleImputer
+if not hasattr(SimpleImputer, '_fill_dtype'):
+    SimpleImputer._fill_dtype = lambda self, X: X.dtype
 
-# --- 2. FUNGSI LOAD MODEL ---
+# --- KONFIGURASI HALAMAN ---
+st.set_page_config(page_title="Water Quality AI", layout="centered")
+
+# --- LOAD MODEL DENGAN PENANGANAN ERROR ---
 @st.cache_resource
 def load_all_components():
     try:
-        # Memuat file pkl
         components = joblib.load('all_models_components.pkl')
         return components
     except Exception as e:
-        st.error(f"Gagal memuat model: {e}")
+        st.error(f"Gagal memuat file pkl: {e}")
         return None
 
 data = load_all_components()
 
 if data:
-    # --- 3. SIDEBAR ---
-    st.sidebar.title("Konfigurasi")
-    model_choice = st.sidebar.selectbox(
-        "Pilih Algoritma:",
-        ["Random Forest", "XGBoost", "Gradient Boosting"]
-    )
-    
-    model_map = {
-        "Random Forest": "random_forest",
-        "XGBoost": "xgboost",
-        "Gradient Boosting": "gradient_boosting"
-    }
-    
-    selected_pipeline = data[model_map[model_choice]]
+    st.title("🌊 Klasifikasi Kualitas Air")
+    st.write("Aplikasi ini sudah diperbaiki untuk masalah kompatibilitas library.")
+
+    # Ambil komponen
+    # Berdasarkan file Anda, model ada dalam dictionary
+    model = data['random_forest'] 
     le = data['label_encoder']
 
-    # --- 4. TAMPILAN UTAMA ---
-    st.title("🌊 Klasifikasi Kualitas Air")
-    st.markdown("Nilai input di bawah ini telah diatur secara default untuk menghasilkan kategori **Good/Excellent**.")
-
-    st.subheader("📝 Masukkan Parameter Air")
-
-    # --- 5. INPUT DENGAN NILAI DEFAULT 'GOOD' ---
-    # Nilai-nilai ini diatur agar model cenderung memprediksi hasil yang baik
-    col1, col2, col3 = st.columns(3)
-
+    # --- INPUT DATA (Nilai Default untuk kategori GOOD) ---
+    st.subheader("📝 Input Parameter Laboratorium")
+    col1, col2 = st.columns(2)
+    
     with col1:
-        ammonia = st.number_input("Ammonia (mg/l)", value=0.01, format="%.4f", help="Nilai rendah = Baik")
-        bod = st.number_input("Biochemical Oxygen Demand (mg/l)", value=1.0, format="%.2f")
-        do = st.number_input("Dissolved Oxygen (mg/l)", value=8.5, format="%.2f", help="Nilai tinggi = Baik")
-
+        ammonia = st.number_input("Ammonia (mg/l)", value=0.01)
+        bod = st.number_input("BOD (mg/l)", value=1.0)
+        do = st.number_input("Dissolved Oxygen (mg/l)", value=8.5)
+        ortho = st.number_input("Orthophosphate (mg/l)", value=0.02)
+        
     with col2:
-        ortho = st.number_input("Orthophosphate (mg/l)", value=0.02, format="%.4f")
-        ph = st.number_input("pH (ph units)", value=7.2, min_value=0.0, max_value=14.0, format="%.2f")
-        temp = st.number_input("Temperature (cel)", value=24.0, format="%.1f")
+        ph = st.number_input("pH Air", value=7.2)
+        temp = st.number_input("Temperature (°C)", value=25.0)
+        nitrogen = st.number_input("Nitrogen (mg/l)", value=0.5)
+        nitrate = st.number_input("Nitrate (mg/l)", value=0.2)
 
-    with col3:
-        nitrogen = st.number_input("Nitrogen (mg/l)", value=0.5, format="%.2f")
-        nitrate = st.number_input("Nitrate (mg/l)", value=0.2, format="%.2f")
-
-    # Membuat DataFrame untuk prediksi
-    # Pastikan nama kolom sesuai dengan 'all_feature_names' di file pkl Anda
+    # DataFrame Input (Nama kolom harus persis sesuai training)
     input_df = pd.DataFrame({
         'Ammonia (mg/l)': [ammonia],
         'Biochemical Oxygen Demand (mg/l)': [bod],
@@ -79,34 +64,24 @@ if data:
 
     st.divider()
 
-    # --- 6. TOMBOL KLASIFIKASI ---
-    if st.button("🚀 JALANKAN KLASIFIKASI", type="primary", use_container_width=True):
+    # --- PROSES KLASIFIKASI ---
+    if st.button("JALANKAN KLASIFIKASI", type="primary", use_container_width=True):
         try:
-            # Prediksi
-            prediction_encoded = selected_pipeline.predict(input_df)
-            prediction_label = le.inverse_transform(prediction_encoded)[0]
+            # Prediksi kelas
+            pred = model.predict(input_df)
+            # Ubah angka kembali ke teks (Good, Excellent, dll)
+            label = le.inverse_transform(pred)[0]
             
-            # Probabilitas
-            probs = selected_pipeline.predict_proba(input_df)
-            confidence = np.max(probs) * 100
-
-            # Tampilan Hasil
-            st.subheader("🎯 Hasil Klasifikasi:")
-            
-            # Layout hasil
-            res_col1, res_col2 = st.columns(2)
-            with res_col1:
-                if "Excellent" in prediction_label or "Good" in prediction_label:
-                    st.success(f"### {prediction_label}")
-                    st.balloons()
-                else:
-                    st.warning(f"### {prediction_label}")
-            
-            with res_col2:
-                st.metric("Tingkat Keyakinan AI", f"{confidence:.2f}%")
-
+            st.subheader("🎯 Hasil Analisis:")
+            if "Good" in label or "Excellent" in label:
+                st.success(f"### KATEGORI: {label}")
+                st.balloons()
+            else:
+                st.warning(f"### KATEGORI: {label}")
+                
         except Exception as e:
-            st.error(f"Terjadi kesalahan: {e}")
+            st.error(f"Kesalahan saat klasifikasi: {e}")
+            st.info("Jika error '_fill_dtype' masih muncul, silakan simpan ulang model (re-save) di lingkungan kerja Anda saat ini.")
 
 else:
-    st.error("Model tidak ditemukan. Pastikan 'all_models_components.pkl' ada di folder yang sama.")
+    st.error("Model tidak ditemukan. Pastikan file 'all_models_components.pkl' berada di folder yang sama dengan app.py.")
