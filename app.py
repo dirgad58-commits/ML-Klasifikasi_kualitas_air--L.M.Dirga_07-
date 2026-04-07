@@ -2,104 +2,153 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
-from collections import Counter
+import os
 
-# 1. Konfigurasi Halaman
+# Konfigurasi halaman
 st.set_page_config(
-    page_title="Water Quality Intelligence", 
-    page_icon="🌊", 
+    page_title="Klasifikasi Kualitas Air",
+    page_icon="💧",
     layout="wide"
 )
 
-# CSS untuk mempercantik antarmuka
+# Judul dan deskripsi
+st.title("💧 Klasifikasi Multi-Level Kualitas Air")
 st.markdown("""
-<style>
-    .main-title { font-size: 40px; font-weight: 800; color: #0F172A; text-align: center; margin-bottom: 5px; }
-    .sub-title { font-size: 18px; color: #475569; text-align: center; margin-bottom: 30px; }
-</style>
-""", unsafe_allow_html=True)
+Aplikasi ini memprediksi kategori kualitas air berdasarkan parameter fisika-kimia air.  
+Hasil klasifikasi: **Excellent**, **Good**, **Marginal**, **Fair**, atau **Poor**.  
+Pilih model machine learning dan masukkan nilai parameter di bawah.
+""")
 
-st.markdown('<div class="main-title">🌊 Dashboard Klasifikasi Kualitas Air</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">Sistem Cerdas Berbasis Ensemble Learning (Hard Voting)</div>', unsafe_allow_html=True)
-
-# 2. Load Model (Hanya merujuk pada all_models_components.pkl)
+# Load model dengan caching
 @st.cache_resource
 def load_models():
-    # Mengambil langsung dari root directory
-    return joblib.load('all_models_components.pkl')
-
-try:
-    components = load_models()
-    rf_pipe = components['random_forest']
-    xgb_pipe = components['xgboost']
-    gb_pipe = components['gradient_boosting']
-    le = components['label_encoder']
+    model_path = "saved_models/all_models_components.pkl"
+    if not os.path.exists(model_path):
+        st.error(f"❌ File model tidak ditemukan di '{model_path}'. Pastikan file sudah diupload.")
+        st.stop()
+    try:
+        data = joblib.load(model_path)
+    except Exception as e:
+        st.error(f"❌ Gagal memuat file model: {e}")
+        st.stop()
     
-    st.sidebar.success("🟢 AI System Online!")
-    st.sidebar.write(f"**Model Terbaik:** {components.get('best_model_name', 'Gradient Boosting')}")
-except Exception as e:
-    st.sidebar.error(f"🔴 Error: File 'all_models_components.pkl' tidak ditemukan di root directory.")
-    st.stop()
+    # Cek kelengkapan komponen
+    required = ['random_forest', 'xgboost', 'gradient_boosting', 'label_encoder',
+                'selected_features', 'all_feature_names', 'best_model_name', 'model_performance']
+    for key in required:
+        if key not in data:
+            st.error(f"❌ File model tidak valid: key '{key}' tidak ditemukan.")
+            st.stop()
+    return data
 
-# --- INPUT DATA ---
-st.subheader("📥 Input Parameter Sampel Air")
-col_kiri, col_kanan = st.columns(2, gap="large")
+# Load data
+model_data = load_models()
 
-with col_kiri:
-    ammonia = st.number_input("Ammonia (mg/l)", value=0.05)
-    bod = st.number_input("BOD (mg/l)", value=1.3)
-    do = st.number_input("Dissolved Oxygen (mg/l)", value=8.15)
-    ortho = st.number_input("Orthophosphate (mg/l)", value=0.01)
+# Ekstrak komponen
+rf_pipeline = model_data['random_forest']
+xgb_pipeline = model_data['xgboost']
+gb_pipeline = model_data['gradient_boosting']
+encoder = model_data['label_encoder']
+selected_features = model_data['selected_features']   # 10 fitur terpilih
+all_features = model_data['all_feature_names']        # 12 fitur asli
+best_model_name = model_data['best_model_name']
+performance = model_data['model_performance']
 
-with col_kanan:
-    ph = st.number_input("pH Level", value=7.0)
-    temp = st.number_input("Temperature (°C)", value=10.0)
-    nitrogen = st.number_input("Total Nitrogen (mg/l)", value=0.34)
-    nitrate = st.number_input("Nitrate (mg/l)", value=1.17)
+# Sidebar: pilihan model
+st.sidebar.header("⚙️ Pengaturan Model")
+model_option = st.sidebar.selectbox(
+    "Pilih model untuk klasifikasi:",
+    ["Random Forest", "XGBoost", "Gradient Boosting", f"Model Terbaik ({best_model_name})"]
+)
 
-# Mapping input sesuai nama kolom saat training
-input_data = pd.DataFrame([{
-    'Ammonia (mg/l)': ammonia,
-    'Biochemical Oxygen Demand (mg/l)': bod,
-    'Dissolved Oxygen (mg/l)': do,
-    'Orthophosphate (mg/l)': ortho,
-    'pH (ph units)': ph,
-    'Temperature (cel)': temp,
-    'Nitrogen (mg/l)': nitrogen,
-    'Nitrate (mg/l)': nitrate
-}])
+# Tampilkan performa model di sidebar
+st.sidebar.subheader("📊 Performa Model (Test Accuracy)")
+for name, acc in performance.items():
+    st.sidebar.write(f"- {name}: **{acc:.4f}**")
+st.sidebar.markdown("---")
+st.sidebar.info("Masukkan nilai parameter pada kolom input di bawah, lalu tekan tombol 'Klasifikasi'.")
 
-st.write("")
-if st.button("🚀 Jalankan Prediksi", type="primary", use_container_width=True):
-    # Prediksi dari 3 model
-    p_rf = rf_pipe.predict(input_data)
-    p_xgb = xgb_pipe.predict(input_data)
-    p_gb = gb_pipe.predict(input_data)
+# Input parameter (hanya 10 fitur terpilih, tetapi pipeline membutuhkan 12 fitur)
+st.subheader("📝 Masukkan Parameter Air")
+st.markdown(f"*Fitur yang digunakan model:* {', '.join(selected_features)}")
+
+# Membagi input menjadi dua kolom
+col1, col2 = st.columns(2)
+input_values = {}
+half = len(selected_features) // 2
+
+with col1:
+    for feat in selected_features[:half]:
+        input_values[feat] = st.number_input(
+            f"**{feat}**",
+            value=0.0,
+            format="%.6f",
+            step=0.01,
+            help=f"Masukkan nilai {feat} (mg/l atau satuan yang sesuai)"
+        )
+with col2:
+    for feat in selected_features[half:]:
+        input_values[feat] = st.number_input(
+            f"**{feat}**",
+            value=0.0,
+            format="%.6f",
+            step=0.01,
+            help=f"Masukkan nilai {feat}"
+        )
+
+# Tombol klasifikasi
+if st.button("🔍 Klasifikasi Kualitas Air", type="primary", use_container_width=True):
+    # Buat dataframe dengan semua fitur (12 kolom)
+    # Isi fitur yang tidak terpilih dengan nilai 0 (atau bisa median, tetapi 0 cukup untuk demo)
+    full_input = {col: 0.0 for col in all_features}
+    for feat in selected_features:
+        full_input[feat] = input_values[feat]
+    input_df = pd.DataFrame([full_input])
     
-    # Konversi ke label teks
-    labels = le.inverse_transform([p_rf[0], p_xgb[0], p_gb[0]])
+    # Pilih pipeline sesuai model
+    if model_option == "Random Forest":
+        pipeline = rf_pipeline
+    elif model_option == "XGBoost":
+        pipeline = xgb_pipeline
+    elif model_option == "Gradient Boosting":
+        pipeline = gb_pipeline
+    else:  # Model terbaik
+        key = best_model_name.lower().replace(" ", "_")
+        pipeline = model_data[key]
     
-    # Voting Terbanyak
-    final_vote = Counter(labels).most_common(1)[0][0]
-    
-    # --- DISPLAY HASIL ---
-    st.markdown("---")
-    theme = {
-        "Excellent": "#059669", "Good": "#2563EB", "Fair": "#D97706", 
-        "Marginal": "#DC2626", "Poor": "#7F1D1D"
-    }
-    color = theme.get(final_vote, "#475569")
-    
-    st.markdown(f"""
-    <div style="background-color:{color}; padding:30px; border-radius:15px; text-align:center; color:white;">
-        <h2 style="margin:0;">HASIL KLASIFIKASI: {final_vote.upper()}</h2>
-        <p style="opacity:0.9;">Keputusan diambil berdasarkan konsensus 3 algoritma AI</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Detail Voting
-    st.write("")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Random Forest", labels[0])
-    c2.metric("XGBoost", labels[1])
-    c3.metric("Gradient Boosting", labels[2])
+    try:
+        # Prediksi
+        pred_encoded = pipeline.predict(input_df)[0]
+        pred_label = encoder.inverse_transform([pred_encoded])[0]
+        
+        # Warna hasil
+        color_map = {
+            "Excellent": "green",
+            "Good": "blue",
+            "Marginal": "orange",
+            "Fair": "darkorange",
+            "Poor": "red"
+        }
+        color = color_map.get(pred_label, "gray")
+        
+        st.markdown(f"## 🎯 Hasil Klasifikasi: <span style='color:{color}; font-weight:bold'>{pred_label}</span>", unsafe_allow_html=True)
+        
+        # Probabilitas (jika model mendukung)
+        if hasattr(pipeline.named_steps['classifier'], "predict_proba"):
+            proba = pipeline.predict_proba(input_df)[0]
+            proba_df = pd.DataFrame({
+                "Kelas": encoder.classes_,
+                "Probabilitas": proba
+            }).sort_values("Probabilitas", ascending=False)
+            st.write("📈 Probabilitas per Kelas:")
+            st.dataframe(proba_df.style.format({"Probabilitas": "{:.4f}"}), use_container_width=True)
+        
+        st.caption(f"Menggunakan model: {model_option}")
+        
+    except Exception as e:
+        st.error(f"❌ Terjadi kesalahan saat klasifikasi: {e}")
+        st.info("Coba gunakan model lain atau periksa kembali input nilai.")
+
+# Footer
+st.markdown("---")
+st.caption("Dibangun dengan Streamlit | Model dilatih menggunakan dataset kualitas air Canada")
