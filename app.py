@@ -2,87 +2,81 @@ import streamlit as st
 import joblib
 import pandas as pd
 import numpy as np
-import time
 
-# --- KONFIGURASI HALAMAN ---
-st.set_page_config(
-    page_title="WaterQuality AI | Sistem Klasifikasi",
-    page_icon="💧",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+# --- SETTING HALAMAN ---
+st.set_page_config(page_title="Water Quality Classifier", page_icon="💧")
 
-# --- CUSTOM CSS ---
-st.markdown("""
-<style>
-    [data-testid="stSidebar"] { background-color: #f0f8ff; }
-    .stButton>button {
-        background-color: #007bff; color: white; border-radius: 10px;
-        width: 100%; height: 3em; font-weight: bold;
-    }
-    .result-card {
-        padding: 20px; border-radius: 15px; background-color: #ffffff;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); margin-bottom: 20px;
-    }
-</style>
-""", unsafe_allow_html=True)
-
+# --- LOAD MODEL ---
 @st.cache_resource
-def load_model_data():
+def load_model():
     try:
-        return joblib.load('all_models_components.pkl')
+        data = joblib.load('all_models_components.pkl')
+        # Pastikan mengambil model random_forest dari dictionary
+        return data['random_forest']
     except Exception as e:
-        st.error(f"Gagal memuat model: {e}")
-        st.stop()
+        st.error(f"Gagal memuat model klasifikasi: {e}")
+        return None
 
-model_data = load_model_data()
-final_model = model_data['random_forest']
+model = load_model()
 
-st.markdown("<h1 style='text-align: center; color: #1e3f66;'>🌊 AI Monitoring Kualitas Air</h1>", unsafe_allow_html=True)
-st.markdown("---")
+# --- ANTARMUKA PENGGUNA (UI) ---
+st.title("🛡️ Klasifikasi Kualitas Air")
+st.markdown("""
+Aplikasi ini mengelompokkan sampel air ke dalam kategori tertentu berdasarkan parameter laboratorium.
+""")
 
-# --- SIDEBAR ---
-with st.sidebar:
-    st.header("Input Data Uji Air")
-    ammonia = st.number_input("Ammonia (mg/l)", min_value=0.0, value=0.1)
-    bod = st.number_input("BOD (mg/l)", min_value=0.0, value=2.0)
-    do = st.number_input("DO (mg/l)", min_value=0.0, value=6.5)
-    ortho = st.number_input("Orthophosphate (mg/l)", min_value=0.0, value=0.05)
-    ph = st.slider("pH", 0.0, 14.0, 7.0)
-    temp = st.number_input("Temp (°C)", min_value=0.0, value=27.0)
-    nitrogen = st.number_input("Nitrogen (mg/l)", min_value=0.0, value=1.5)
-    nitrate = st.number_input("Nitrate (mg/l)", min_value=0.0, value=0.8)
+# Input dibuat sederhana dalam satu blok agar mudah diisi
+st.subheader("📊 Masukan Parameter Lab")
+col1, col2 = st.columns(2)
 
-    input_data = pd.DataFrame({
-        'Ammonia (mg/l)': [ammonia], 'Biochemical Oxygen Demand (mg/l)': [bod],
-        'Dissolved Oxygen (mg/l)': [do], 'Orthophosphate (mg/l)': [ortho],
-        'pH (ph units)': [ph], 'Temperature (cel)': [temp],
-        'Nitrogen (mg/l)': [nitrogen], 'Nitrate (mg/l)': [nitrate]
-    })
-    predict_btn = st.button("Analisis Kualitas Air")
+with col1:
+    ammonia = st.number_input("Ammonia (mg/l)", value=0.10, format="%.2f")
+    bod = st.number_input("BOD (mg/l)", value=2.00, format="%.2f")
+    do = st.number_input("Dissolved Oxygen (mg/l)", value=6.50, format="%.2f")
+    ortho = st.number_input("Orthophosphate (mg/l)", value=0.05, format="%.2f")
 
-# --- AREA UTAMA ---
-col_data, col_result = st.columns([1, 1])
+with col2:
+    ph = st.number_input("pH Air", value=7.00, min_value=0.0, max_value=14.0, format="%.2f")
+    temp = st.number_input("Suhu (°C)", value=28.0, format="%.1f")
+    nitrogen = st.number_input("Total Nitrogen (mg/l)", value=1.50, format="%.2f")
+    nitrate = st.number_input("Nitrate (mg/l)", value=0.80, format="%.2f")
 
-with col_data:
-    st.subheader("📋 Ringkasan Data Input")
-    # PERBAIKAN DI SINI: Menggunakan width="stretch"
-    st.dataframe(input_data.T.rename(columns={0: 'Nilai'}), width="stretch")
+# Membuat Dataframe sesuai urutan fitur model
+input_data = pd.DataFrame({
+    'Ammonia (mg/l)': [ammonia],
+    'Biochemical Oxygen Demand (mg/l)': [bod],
+    'Dissolved Oxygen (mg/l)': [do],
+    'Orthophosphate (mg/l)': [ortho],
+    'pH (ph units)': [ph],
+    'Temperature (cel)': [temp],
+    'Nitrogen (mg/l)': [nitrogen],
+    'Nitrate (mg/l)': [nitrate]
+})
 
-with col_result:
-    st.subheader("🎯 Hasil Klasifikasi AI")
-    if predict_btn:
-        with st.spinner('Menganalisis...'):
-            time.sleep(1)
-            prediction = final_model.predict(input_data)
+st.divider()
+
+# --- LOGIKA KLASIFIKASI ---
+if st.button("JALANKAN KLASIFIKASI", type="primary", use_container_width=True):
+    if model:
+        try:
+            # Menggunakan .predict() untuk mendapatkan label kelas
+            hasil_kelas = model.predict(input_data)[0]
             
-            st.markdown("<div class='result-card'>", unsafe_allow_html=True)
-            if prediction[0] == 0:
-                st.success("## ✨ STATUS: BAIK")
-            elif prediction[0] == 1:
-                st.warning("## ⚠️ STATUS: TERCEMAR RINGAN")
+            st.subheader("📍 Hasil Analisis Kategori:")
+            
+            # Menampilkan hasil berdasarkan kategori (Klasifikasi)
+            # Catatan: Sesuaikan keterangan di bawah dengan urutan label asli Anda
+            if hasil_kelas == 0:
+                st.success(f"### KATEGORI: BAIK (Label {hasil_kelas})")
+                st.write("Air memenuhi syarat kualitas dan aman bagi ekosistem.")
+            elif hasil_kelas == 1:
+                st.warning(f"### KATEGORI: TERCEMAR RINGAN (Label {hasil_kelas})")
+                st.write("Ditemukan kontaminasi ringan, diperlukan pemantauan rutin.")
             else:
-                st.error("## 🚨 STATUS: TERCEMAR BERAT")
-            st.markdown("</div>", unsafe_allow_html=True)
+                st.error(f"### KATEGORI: TERCEMAR BERAT (Label {hasil_kelas})")
+                st.write("Kualitas air buruk! Berisiko bagi kesehatan dan lingkungan.")
+
+        except Exception as e:
+            st.error(f"Terjadi kesalahan saat memproses data: {e}")
     else:
-        st.info("👈 Silakan klik tombol 'Analisis' di sidebar.")
+        st.error("Model tidak terdeteksi. Periksa file .pkl Anda.")
