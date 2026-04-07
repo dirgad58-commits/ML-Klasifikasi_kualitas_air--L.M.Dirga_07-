@@ -32,8 +32,7 @@ def load_models():
     # Jika file pkl dipindah ke luar, ubah path di bawah ini menjadi 'all_models_components.pkl'
     try:
         return joblib.load('all_models_components.pkl')
-    except FileNotFoundError:
-        return joblib.load('all_models_components.pkl')
+   
 
 try:
     components = load_models()
