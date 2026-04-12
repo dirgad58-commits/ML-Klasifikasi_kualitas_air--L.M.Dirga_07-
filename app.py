@@ -12,89 +12,86 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- Bootstrap Icons & Font Awesome (opsional) ---
+# --- Bootstrap Icons & Font Google ---
 st.markdown("""
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 """, unsafe_allow_html=True)
 
-# CSS Profesional dengan warna interaktif & proporsi seimbang
+# CSS dengan background terang, cerah, interaktif
 st.markdown("""
 <style>
-    /* Global */
+    /* Global - background gradien terang */
     .main {
-        background: linear-gradient(135deg, #f5f7fc 0%, #eef2f8 100%);
+        background: linear-gradient(135deg, #f9fafc 0%, #eef2ff 100%);
         font-family: 'Inter', sans-serif;
     }
-    /* Header */
+    /* Header dengan gradien biru muda */
     .title {
-        background: linear-gradient(90deg, #0a2b4e, #1e4a76);
+        background: linear-gradient(90deg, #1e3a8a, #3b82f6);
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
         font-weight: 800;
         font-size: 2.5rem;
         text-align: center;
-        padding-bottom: 10px;
-        margin-bottom: 10px;
-        letter-spacing: -0.5px;
+        margin-bottom: 5px;
+        letter-spacing: -0.3px;
     }
     .subtitle {
         text-align: center;
-        color: #2c3e66;
+        color: #1e40af;
         font-size: 1rem;
-        margin-bottom: 30px;
-        border-bottom: 1px solid #cbd5e1;
+        margin-bottom: 25px;
+        background: rgba(255,255,240,0.6);
         display: inline-block;
-        padding-bottom: 8px;
-        width: auto;
-        margin-left: auto;
-        margin-right: auto;
+        padding: 5px 18px;
+        border-radius: 40px;
+        backdrop-filter: blur(2px);
     }
     /* Badge kelas */
     .class-badge {
         display: inline-block;
-        background: #e2e8f0;
+        background: #e0e7ff;
         border-radius: 30px;
         padding: 4px 14px;
         margin: 0 5px;
         font-size: 0.75rem;
         font-weight: 600;
-        color: #1e293b;
-        box-shadow: inset 0 1px 1px rgba(0,0,0,0.05);
+        color: #1e3a8a;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
-    /* Card model */
+    /* Card model - putih bersih dengan bayangan interaktif */
     .card {
-        background: white;
-        border-radius: 20px;
+        background: #ffffff;
+        border-radius: 28px;
         padding: 1.2rem 0.8rem;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.02);
-        transition: all 0.25s ease;
+        box-shadow: 0 12px 28px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.02);
+        transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
         height: 100%;
-        border: 1px solid rgba(203,213,225,0.4);
+        border: 1px solid rgba(148, 163, 184, 0.2);
     }
     .card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 20px 25px -12px rgba(0,0,0,0.15);
-        border-color: #b9c8e8;
+        transform: translateY(-6px);
+        box-shadow: 0 24px 36px -12px rgba(0,0,0,0.2);
+        border-color: #b9d0f0;
     }
     .model-name {
         font-size: 1.35rem;
         font-weight: 700;
-        color: #0f2b3d;
-        text-align: center;
-        background: #f0f4fa;
+        color: #0c4a6e;
+        background: #eef2ff;
         display: inline-block;
-        padding: 6px 16px;
+        padding: 6px 18px;
         border-radius: 40px;
         margin-bottom: 12px;
     }
     .status-label {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: #4b5565;
-        margin-top: 8px;
+        letter-spacing: 0.6px;
+        color: #475569;
+        margin-top: 6px;
     }
     .verdict {
         font-size: 2rem;
@@ -104,82 +101,83 @@ st.markdown("""
     }
     .confidence {
         font-size: 0.85rem;
-        color: #2c3e50;
         font-weight: 500;
+        color: #1e293b;
     }
     .progress-bar-bg {
         background-color: #e2e8f0;
-        border-radius: 20px;
+        border-radius: 30px;
         height: 8px;
         overflow: hidden;
         margin: 10px 0;
     }
     .progress-fill {
-        background: linear-gradient(90deg, #2563eb, #3b82f6);
+        background: linear-gradient(90deg, #2563eb, #60a5fa);
         height: 100%;
-        border-radius: 20px;
+        border-radius: 30px;
         width: 0%;
     }
-    /* Custom info alert */
+    /* Custom info alert dengan warna cerah */
     .custom-info {
-        background: #f0f9ff;
-        border-left: 4px solid #1e4a76;
+        background: #fefce8;
+        border-left: 5px solid #eab308;
         padding: 0.8rem 1rem;
-        border-radius: 12px;
+        border-radius: 16px;
         margin: 1rem 0;
         font-size: 0.9rem;
-        color: #1e3a5f;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        color: #854d0e;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     }
-    /* Tombol */
+    .custom-success {
+        background: #e0f2fe;
+        border-left-color: #0284c7;
+        color: #0c4a6e;
+    }
+    /* Tombol utama */
     .stButton > button {
-        background: linear-gradient(90deg, #1e4a76, #0f2b3d);
+        background: linear-gradient(90deg, #1e3a8a, #2563eb);
         color: white;
         font-weight: 600;
-        border-radius: 40px;
+        border-radius: 44px;
         padding: 0.6rem 2rem;
         border: none;
         width: 100%;
         transition: 0.2s;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 10px rgba(37,99,235,0.2);
     }
     .stButton > button:hover {
         transform: scale(1.01);
-        background: linear-gradient(90deg, #0f2b3d, #1e4a76);
-        box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        background: linear-gradient(90deg, #1e40af, #3b82f6);
+        box-shadow: 0 8px 18px rgba(37,99,235,0.3);
     }
     /* Footer */
     .footer {
         text-align: center;
-        color: #5b6e8c;
+        color: #475569;
         font-size: 0.75rem;
-        margin-top: 45px;
+        margin-top: 50px;
         padding-top: 20px;
         border-top: 1px solid #cbd5e1;
     }
     hr {
         margin: 12px 0;
-        border-color: #e2e8f0;
+        border-color: #cbd5e1;
     }
-    /* Expander */
+    /* Expander & input */
     .streamlit-expanderHeader {
         background-color: #f8fafc;
-        border-radius: 12px;
+        border-radius: 20px;
         font-weight: 500;
     }
-    /* Dataframe */
-    .dataframe {
-        border-radius: 12px;
-        overflow: hidden;
-    }
-    /* Kolom input seimbang */
-    .stNumberInput > div > div > input {
-        border-radius: 12px;
+    .stNumberInput > div > div > input, .stSelectbox > div > div {
+        border-radius: 16px;
         border: 1px solid #cbd5e1;
         padding: 8px 12px;
     }
-    .stSelectbox > div > div {
-        border-radius: 12px;
+    /* Dataframe */
+    .dataframe {
+        border-radius: 16px;
+        overflow: hidden;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -203,19 +201,18 @@ def load_all_assets():
 try:
     info, scaler, ohe, le, models = load_all_assets()
     st.markdown("""
-    <div class="custom-info" style="background:#e0f2e0; border-left-color:#2e7d32;">
-        <i class="bi bi-check-circle-fill" style="color:#2e7d32;"></i> Model dan preprocessor berhasil dimuat.
+    <div class="custom-info custom-success" style="background:#dcfce7; border-left-color:#16a34a; color:#14532d;">
+        <i class="bi bi-check-circle-fill" style="color:#16a34a;"></i> Model dan preprocessor berhasil dimuat.
     </div>
     """, unsafe_allow_html=True)
 except Exception as e:
     st.markdown(f"""
-    <div class="custom-info" style="background:#fee2e2; border-left-color:#c62828;">
-        <i class="bi bi-exclamation-triangle-fill" style="color:#c62828;"></i> Kesalahan: {e}
+    <div class="custom-info" style="background:#fee2e2; border-left-color:#dc2626; color:#7f1d1d;">
+        <i class="bi bi-exclamation-triangle-fill"></i> Kesalahan: {e}
     </div>
     """, unsafe_allow_html=True)
     st.stop()
 
-# Informasi kelas
 class_names = [c.upper() for c in le.classes_]
 
 # Header
@@ -223,22 +220,20 @@ st.markdown("""
 <div class='title'>
     <i class="bi bi-water" style="font-size: 2.2rem;"></i> Klasifikasi Multi-Kelas Kualitas Air
 </div>
-""", unsafe_allow_html=True)
-st.markdown(f"""
-<div style="text-align: center; margin-bottom: 25px;">
-    <span class='subtitle' style="display: inline-block;">
-        <i class="bi bi-diagram-3"></i> <strong>LightGBM</strong> | <strong>CatBoost</strong> | <strong>HistGradientBoosting</strong>
+<div style="text-align: center;">
+    <span class='subtitle'>
+        <i class="bi bi-diagram-3"></i> LightGBM  |  CatBoost  |  HistGradientBoosting
     </span>
     <br>
-    <div style="margin-top: 8px;">
-        {''.join([f'<span class="class-badge">{cls}</span>' for cls in class_names])}
+    <div style="margin-top: 10px;">
+""" + ''.join([f'<span class="class-badge">{cls}</span>' for cls in class_names]) + """
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# --- Input Form dengan proporsi seimbang ---
+# --- Input Form ---
 st.markdown("""
-<div style="margin-top: 20px;">
+<div style="margin-top: 25px;">
     <h3><i class="bi bi-pencil-square"></i> 1. Parameter Masukan</h3>
 </div>
 """, unsafe_allow_html=True)
@@ -250,14 +245,13 @@ default_vals = {
 
 st.markdown("""
 <div class="custom-info">
-    <i class="bi bi-info-circle"></i> Gunakan nilai default untuk uji cepat (kondisi air baik). Ubah sesuai data laboratorium.
+    <i class="bi bi-info-circle"></i> Nilai default untuk uji cepat (kondisi air baik). Ubah sesuai data laboratorium.
 </div>
 """, unsafe_allow_html=True)
 
 with st.form("input_form"):
     col1, col2, col3 = st.columns(3, gap="medium")
     user_inputs = {}
-    # Numerik
     for i, col_name in enumerate(info['numeric_cols']):
         target_col = [col1, col2, col3][i % 3]
         with target_col:
@@ -285,7 +279,6 @@ if submitted:
     X_cat_encoded = ohe.transform(X_cat)
     X_final = np.hstack([X_num_scaled, X_cat_encoded])
 
-    # Ringkasan input
     st.markdown("""
     <h3><i class="bi bi-table"></i> 2. Ringkasan Parameter Input</h3>
     """, unsafe_allow_html=True)
@@ -298,10 +291,8 @@ if submitted:
     <h3><i class="bi bi-diagram-3"></i> 3. Hasil Klasifikasi (3 Algoritma)</h3>
     """, unsafe_allow_html=True)
 
-    # Tiga kolom untuk model
     cols = st.columns(3, gap="large")
     results = []
-
     for idx, (model_name, model) in enumerate(models.items()):
         pred_raw = model.predict(X_final)
         pred_idx = int(pred_raw[0]) if isinstance(pred_raw, np.ndarray) else int(pred_raw)
@@ -315,15 +306,15 @@ if submitted:
             "Prediksi": label,
             "Confidence (%)": confidence if confidence is not None else None
         })
-        # Warna berdasarkan label
+        # Warna aksen
         if label in ["EXCELLENT", "GOOD"]:
             color = "#15803d"
             icon = "bi bi-check-circle-fill"
-            bg_light = "#e0f2e0"
+            bg_light = "#dcfce7"
         elif label in ["MODERATE", "FAIR"]:
             color = "#d97706"
             icon = "bi bi-exclamation-triangle-fill"
-            bg_light = "#fff3e0"
+            bg_light = "#fef3c7"
         else:
             color = "#b91c1c"
             icon = "bi bi-x-circle-fill"
@@ -360,13 +351,13 @@ if submitted:
     st.dataframe(results_df, use_container_width=True)
     if results_df['Prediksi'].nunique() == 1:
         st.markdown("""
-        <div class="custom-info" style="background:#e0f2e0; border-left-color:#15803d;">
+        <div class="custom-info" style="background:#dcfce7; border-left-color:#15803d;">
             <i class="bi bi-check2-all"></i> <strong>Konsisten:</strong> Semua model sepakat dengan prediksi yang sama.
         </div>
         """, unsafe_allow_html=True)
     else:
         st.markdown("""
-        <div class="custom-info" style="background:#fff3cd; border-left-color:#d97706;">
+        <div class="custom-info" style="background:#fef3c7; border-left-color:#d97706;">
             <i class="bi bi-exclamation-triangle"></i> <strong>Perbedaan prediksi:</strong> Model memberikan hasil berbeda. Perhatikan confidence untuk keputusan akhir.
         </div>
         """, unsafe_allow_html=True)
@@ -389,7 +380,7 @@ if submitted:
             with col_proba:
                 st.dataframe(proba_df, use_container_width=True, hide_index=True)
             with col_chart:
-                st.bar_chart(proba_df.set_index("Kelas"), color="#1e4a76")
+                st.bar_chart(proba_df.set_index("Kelas"), color="#3b82f6")
         else:
             st.info("Model tidak menyediakan probabilitas per kelas.")
     else:
