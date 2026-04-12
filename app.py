@@ -256,12 +256,19 @@ with st.form("input_form"):
     submitted = st.form_submit_button("Jalankan Klasifikasi", use_container_width=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Fungsi prediksi ---
 def predict_all_models(models, X_final, le):
     results = []
     for name, model in models.items():
         pred_raw = model.predict(X_final)
-        pred_idx = int(pred_raw[0]) if isinstance(pred_raw, np.ndarray) else int(pred_raw)
+        # Pastikan pred_raw berupa array 1D dan ambil elemen pertama
+        if isinstance(pred_raw, np.ndarray):
+            pred_flat = pred_raw.flatten()
+            pred_idx = int(pred_flat[0]) if len(pred_flat) > 0 else int(pred_raw)
+        elif isinstance(pred_raw, (list, tuple)):
+            pred_idx = int(pred_raw[0])
+        else:
+            pred_idx = int(pred_raw)  # skalar
+        
         label = le.inverse_transform([pred_idx])[0].upper()
         confidence = None
         proba = None
