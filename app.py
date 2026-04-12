@@ -1,104 +1,97 @@
 import streamlit as st
-import joblib
 import pandas as pd
 import numpy as np
-from sklearn.impute import SimpleImputer
+import pickle
+import json
+import os
 
-# --- KONFIGURASI HALAMAN ---
-st.set_page_config(page_title="Canada Water Quality AI", page_icon="🇨🇦")
+# Konfigurasi Halaman
+st.set_page_config(page_title="Water Quality Classifier", layout="wide")
 
+# Fungsi untuk memuat aset dari dalam folder 'models'
 @st.cache_resource
-def load_and_fix_model():
-    try:
-        # Load file pkl
-        data = joblib.load('all_models_components.pkl')
-        
-        # Daftar model yang tersedia di file Anda
-        models_dict = {
-            'Gradient Boosting (Terbaik)': data['gradient_boosting'],
-            'XGBoost': data['xgboost'],
-            'Random Forest': data['random_forest']
-        }
-        
-        # FIX: Ganti imputer yang rusak dengan yang baru untuk setiap model
-        for name in models_dict:
-            new_imputer = SimpleImputer(strategy='median')
-            models_dict[name].steps[0] = ('imputer', new_imputer)
-            
-        return models_dict, data['label_encoder']
-    except Exception as e:
-        st.error(f"Gagal memuat model: {e}")
-        return None, None
-
-models, le = load_and_fix_model()
-
-if models and le:
-    st.title("🌊 Klasifikasi Kualitas Air Canada")
+def load_assets():
+    # Tentukan jalur folder
+    model_path = "models"
     
-    # Pilih Model
-    selected_model_name = st.selectbox("Pilih Model Algoritma:", list(models.keys()))
-    model_pipeline = models[selected_model_name]
-
-    # --- INPUT DATA (Default: Kategori GOOD) ---
-    st.subheader("📝 Input Parameter Air")
-    col1, col2 = st.columns(2)
+    # Load Metadata JSON
+    with open(os.path.join(model_path, 'feature_info.json'), 'r') as f:
+        info = json.load(f)
     
-    with col1:
-        ammonia = st.number_input("Ammonia (mg/l)", value=0.03)
-        bod = st.number_input("BOD (mg/l)", value=1.3)
-        do = st.number_input("Dissolved Oxygen (mg/l)", value=8.1)
-        ortho = st.number_input("Orthophosphate (mg/l)", value=0.01)
+    # Load Pre-processing tools
+    scaler = pickle.load(open(os.path.join(model_path, 'scaler.pkl'), 'rb'))
+    ohe = pickle.load(open(os.path.join(model_path, 'ohe.pkl'), 'rb'))
+    le = pickle.load(open(os.path.join(model_path, 'label_encoder.pkl'), 'rb'))
+    
+    # Memuat model terbaik (berdasarkan data di feature_info.json)
+    # Secara dinamis mengambil file catboost.pkl (atau sesuai best_model_name)
+    model_file = info['best_model_name'].lower() + ".pkl"
+    model = pickle.load(open(os.path.join(model_path, model_file), 'rb'))
+    
+    return info, scaler, ohe, le, model
+
+# Menjalankan fungsi load
+try:
+    info, scaler, ohe, le, model = load_assets()
+except FileNotFoundError as e:
+    st.error(f"Gagal memuat file: {e}. Pastikan folder 'models' sudah ada di GitHub.")
+    st.stop()
+
+st.title("💧 Water Quality Classification AI")
+st.info(f"Menggunakan Model: **{info['best_model_name']}** | Akurasi: {info['best_accuracy']:.2%}")
+
+# --- Bagian Sidebar untuk Input ---
+st.sidebar.header("Input Parameter")
+
+def get_user_input():
+    inputs = {}
+    
+    # Input Numerik berdasarkan data di feature_info.json
+    st.sidebar.subheader("Fitur Numerik")
+    for col in info['numeric_cols']:
+        inputs[col] = st.sidebar.number_input(f"Nilai {col.upper()}", value=0.0, format="%.4f")
         
-    with col2:
-        ph = st.number_input("pH (ph units)", value=8.0)
-        temp = st.number_input("Temperature (cel)", value=10.0)
-        nitrogen = st.number_input("Nitrogen (mg/l)", value=0.34)
-        nitrate = st.number_input("Nitrate (mg/l)", value=1.17)
+    # Input Kategorikal (macro_land_use)
+    st.sidebar.subheader("Fitur Kategorikal")
+    for col in info['categorical_cols']:
+        # Ambil kategori asli dari OneHotEncoder
+        options = ohe.categories_[0].tolist()
+        inputs[col] = st.sidebar.selectbox(f"Pilih {col}", options)
+        
+    return pd.DataFrame([inputs])
 
-    # DataFrame Input - PASTIKAN nama kolom sama persis dengan dataset asli
-    input_df = pd.DataFrame({
-        'Ammonia (mg/l)': [ammonia],
-        'Biochemical Oxygen Demand (mg/l)': [bod],
-        'Dissolved Oxygen (mg/l)': [do],
-        'Orthophosphate (mg/l)': [ortho],
-        'pH (ph units)': [ph],
-        'Temperature (cel)': [temp],
-        'Nitrogen (mg/l)': [nitrogen],
-        'Nitrate (mg/l)': [nitrate]
-    })
+input_df = get_user_input()
 
-    st.divider()
+# --- Tampilan Utama ---
+st.subheader("Data yang Akan Diprediksi")
+st.dataframe(input_df)
 
-    # --- TOMBOL KLASIFIKASI ---
-    if st.button("JALANKAN KLASIFIKASI", type="primary", use_container_width=True):
-        try:
-            # FIX ERROR 'X': Panggil predict langsung dengan input_df sebagai argumen pertama
-            # Fit imputer baru dulu agar mengenali format data
-            model_pipeline.named_steps['imputer'].fit(input_df)
-            
-            # Melakukan prediksi
-            prediction = model_pipeline.predict(input_df) # Ini adalah X yang diminta
-            
-            # Mengubah hasil angka ke label teks (Excellent/Good/dll)
-            label = le.inverse_transform(prediction)[0]
-            
-            # Menampilkan Hasil
-            if label in ['Excellent', 'Good']:
-                st.success(f"### HASIL: {label}")
-                st.balloons()
-            elif label == 'Fair':
-                st.info(f"### HASIL: {label}")
-            else:
-                st.warning(f"### HASIL: {label}")
-
-            # Probabilitas (Jika tersedia)
-            try:
-                prob = model_pipeline.predict_proba(input_df)
-                st.write(f"Tingkat Keyakinan: **{np.max(prob)*100:.2f}%**")
-            except:
-                pass
-                
-        except Exception as e:
-            st.error(f"Kesalahan saat pemrosesan: {e}")
-else:
-    st.warning("Pastikan file 'all_models_components.pkl' sudah ada di folder aplikasi.")
+if st.button("Analisis Kualitas Air", type="primary"):
+    # 1. Pre-processing
+    X_num = input_df[info['numeric_cols']]
+    X_cat = input_df[info['categorical_cols']]
+    
+    # Transformasi menggunakan scaler dan ohe yang dimuat dari folder models
+    X_num_scaled = scaler.transform(X_num)
+    X_cat_encoded = ohe.transform(X_cat)
+    
+    # Gabungkan kembali fitur
+    X_final = np.hstack([X_num_scaled, X_cat_encoded])
+    
+    # 2. Prediksi
+    prediction_idx = model.predict(X_final)
+    
+    # Pastikan format indeks benar (untuk CatBoost terkadang array 2D)
+    if isinstance(prediction_idx, np.ndarray):
+        prediction_idx = int(prediction_idx.flatten()[0])
+        
+    # 3. Decode Label (Mengubah angka kembali ke 'good', 'bad', dll)
+    result_label = le.inverse_transform([prediction_idx])[0]
+    
+    # Tampilkan Hasil dengan gaya visual
+    st.markdown("---")
+    if result_label.lower() in ['excelent', 'good']:
+        st.success(f"### Hasil Prediksi: **{result_label.upper()}**")
+        st.balloons()
+    else:
+        st.warning(f"### Hasil Prediksi: **{result_label.upper()}**")
