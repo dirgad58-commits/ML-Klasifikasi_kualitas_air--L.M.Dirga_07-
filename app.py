@@ -4,245 +4,156 @@ import numpy as np
 import pickle
 import json
 import os
+import plotly.graph_objects as go
 
-# Konfigurasi halaman
+# 1. KONFIGURASI HALAMAN
 st.set_page_config(
-    page_title="Multi-Class Water Quality | 3 Algoritma",
+    page_title="Sistem Analisis Kualitas Air - Universitas Halu Oleo",
+    page_icon="💧",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- Tambahkan Bootstrap Icons ---
+# 2. CSS KUSTOM (Tema Terang & Profesional)
 st.markdown("""
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-""", unsafe_allow_html=True)
-
-# CSS profesional dengan penekanan multi-class
-st.markdown("""
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <style>
-    .main { background-color: #f0f2f6; }
-    .title {
-        color: #1e3a8a;
-        font-family: 'Segoe UI', Roboto, sans-serif;
-        font-weight: 700;
-        text-align: center;
-        border-bottom: 2px solid #1e3a8a;
-        padding-bottom: 12px;
-        margin-bottom: 20px;
+    /* Mengatur latar belakang utama menjadi abu-abu sangat muda (bukan hitam) */
+    .stApp {
+        background-color: #F8FAFC;
     }
-    .subtitle {
-        text-align: center;
-        color: #334155;
-        margin-top: -10px;
-        margin-bottom: 20px;
-        font-size: 1rem;
-    }
-    .class-badge {
-        display: inline-block;
-        background-color: #e2e8f0;
-        border-radius: 20px;
-        padding: 4px 12px;
-        font-size: 0.8rem;
-        margin: 0 4px;
-    }
-    .card {
+    
+    /* Header Utama */
+    .main-header {
         background-color: #ffffff;
+        padding: 2rem;
+        border-radius: 0 0 15px 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        margin-bottom: 2rem;
+        text-align: center;
+        border-bottom: 4px solid #1E3A8A;
+    }
+    
+    .uho-title {
+        color: #1E3A8A;
+        font-family: 'Helvetica Neue', sans-serif;
+        font-weight: 800;
+        letter-spacing: -1px;
+        margin-bottom: 0;
+    }
+    
+    /* Card Style untuk Hasil */
+    .algo-card {
+        background-color: #ffffff;
+        padding: 1.5rem;
         border-radius: 12px;
-        padding: 1.2rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        border: 1px solid #e2e8f0;
-        height: 100%;
-        transition: all 0.2s;
-    }
-    .card:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    .model-name {
-        font-size: 1.3rem;
-        font-weight: 600;
-        color: #0f172a;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         text-align: center;
-        margin-bottom: 10px;
+        transition: transform 0.2s;
     }
-    .status-label {
-        font-size: 1rem;
-        color: #475569;
-        text-align: center;
+    .algo-card:hover {
+        transform: translateY(-5px);
     }
-    .verdict {
-        font-size: 2rem;
-        font-weight: 700;
-        text-align: center;
-        margin: 10px 0;
+    
+    /* Badge Status */
+    .status-badge {
+        padding: 8px 16px;
+        border-radius: 50px;
+        font-weight: bold;
+        font-size: 1.2rem;
+        display: inline-block;
+        margin-top: 10px;
     }
-    .confidence {
-        text-align: center;
-        font-size: 0.9rem;
-        color: #2d3e50;
-        margin-top: 8px;
-    }
-    .progress-bar-bg {
-        background-color: #e2e8f0;
-        border-radius: 12px;
-        height: 10px;
-        margin: 8px 0;
-        overflow: hidden;
-    }
-    .progress-fill {
-        background-color: #2563eb;
-        height: 100%;
-        width: 0%;
-        border-radius: 12px;
-    }
-    .input-summary {
-        background-color: #f8fafc;
-        padding: 1rem;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        margin: 20px 0;
-    }
-    .footer {
-        text-align: center;
-        color: #64748b;
-        font-size: 0.75rem;
-        margin-top: 40px;
-        padding-top: 20px;
-        border-top: 1px solid #e2e8f0;
-    }
-    .stButton > button {
-        background-color: #1e3a8a;
-        color: white;
-        font-weight: 500;
-        border-radius: 8px;
-        padding: 0.5rem 1.5rem;
-        width: 100%;
-        border: none;
-    }
-    .stButton > button:hover {
-        background-color: #1e40af;
-    }
-    hr {
-        margin: 10px 0;
-    }
-    .custom-info {
-        background-color: #e6f0fa;
-        border-left: 4px solid #1e3a8a;
-        padding: 0.8rem 1rem;
-        border-radius: 8px;
-        margin: 1rem 0;
-        font-size: 0.9rem;
-        color: #0c4e6e;
-    }
-    .comparison-table {
-        margin-top: 20px;
+    
+    .excellent { background-color: #DCFCE7; color: #166534; }
+    .good { background-color: #DBEAFE; color: #1E40AF; }
+    .moderate { background-color: #FEF3C7; color: #92400E; }
+    .poor { background-color: #FEE2E2; color: #991B1B; }
+
+    /* Input Styling */
+    .stNumberInput label, .stSelectbox label {
+        color: #334155 !important;
+        font-weight: 600 !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Memuat semua aset model
+# 3. FUNGSI LOAD DATA
 @st.cache_resource
-def load_all_assets():
+def load_assets():
     path = "models"
     with open(os.path.join(path, 'feature_info.json'), 'r') as f:
         info = json.load(f)
-    
     scaler = pickle.load(open(os.path.join(path, 'scaler.pkl'), 'rb'))
     ohe = pickle.load(open(os.path.join(path, 'ohe.pkl'), 'rb'))
     le = pickle.load(open(os.path.join(path, 'label_encoder.pkl'), 'rb'))
-    
     models = {
         "LightGBM": pickle.load(open(os.path.join(path, 'lightgbm.pkl'), 'rb')),
         "CatBoost": pickle.load(open(os.path.join(path, 'catboost.pkl'), 'rb')),
         "HistGradientBoosting": pickle.load(open(os.path.join(path, 'histgradientboosting.pkl'), 'rb'))
     }
-    
     return info, scaler, ohe, le, models
 
+# Inisialisasi
 try:
-    info, scaler, ohe, le, models = load_all_assets()
-    st.markdown("""
-    <div class="custom-info" style="background-color:#e0f2e0; border-left-color:#15803d;">
-        <i class="bi bi-check-circle-fill" style="color:#15803d;"></i> Semua model dan preprocessor berhasil dimuat.
-    </div>
-    """, unsafe_allow_html=True)
+    info, scaler, ohe, le, models = load_assets()
 except Exception as e:
-    st.markdown(f"""
-    <div class="custom-info" style="background-color:#fee2e2; border-left-color:#b91c1c;">
-        <i class="bi bi-exclamation-triangle-fill" style="color:#b91c1c;"></i> Kesalahan fatal: Gagal memuat komponen. Detail: {e}
-    </div>
-    """, unsafe_allow_html=True)
+    st.error(f"Sistem gagal memuat modul model di folder '/models'.")
     st.stop()
 
-# --- Informasi kelas (dari label encoder) ---
-available_classes = le.classes_.tolist()
-class_names = [c.upper() for c in available_classes]
-
-# Header dengan penjelasan multi-class
-st.markdown(f"""
-<div class='title'>
-    <i class="bi bi-water" style="font-size: 2rem; margin-right: 10px;"></i> 
-    Klasifikasi Multi-Kelas Kualitas Air
-</div>
-""", unsafe_allow_html=True)
-st.markdown(f"""
-<div class='subtitle'>
-    <i class="bi bi-diagram-3"></i> Perbandingan Tiga Algoritma Gradient Boosting: 
-    <strong>LightGBM</strong> | <strong>CatBoost</strong> | <strong>HistGradientBoosting</strong><br>
-    <i class="bi bi-tags"></i> Kelas target: 
-    {''.join([f'<span class="class-badge">{cls}</span>' for cls in class_names])}
-</div>
-""", unsafe_allow_html=True)
-
-# Nilai default untuk uji cepat (kondisi air baik)
-default_vals = {
-    'ph': 7.20,
-    'do': 6.50,
-    'bod': 2.10,
-    'tc': 50.0,
-    'tn': 1.20,
-    'tp': 0.05,
-    'ts': 150.0,
-    'turb': 4.50,
-    'temp': 25.0
-}
-
+# 4. HEADER UI
 st.markdown("""
-<h3><i class="bi bi-pencil-square" style="margin-right: 8px;"></i> 1. Parameter Masukan (Data Laboratorium)</h3>
+    <div class="main-header">
+        <h1 class="uho-title">WATER QUALITY CLASSIFICATION SYSTEM</h1>
+        <p style="color: #64748B; font-size: 1.1rem;">Implementasi Algoritma Gradient Boosting untuk Pemantauan Mutu Air</p>
+    </div>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<div class="custom-info">
-    <i class="bi bi-info-circle-fill" style="margin-right: 8px;"></i> 
-    Nilai default mencerminkan kondisi air normal/baik. Ubah nilai untuk menguji berbagai skenario.
-    Sistem akan memprediksi kelas kualitas air (multi-kelas) menggunakan tiga model secara bersamaan.
-</div>
-""", unsafe_allow_html=True)
+# 5. INPUT SECTION (Tengah Halaman)
+tab1, tab2, tab3 = st.tabs([
+    "📝 Input Parameter Laboratorium", 
+    "📊 Hasil Klasifikasi Komparatif", 
+    "🔬 Detail Vektor & Probabilitas"
+])
 
-with st.form("input_form"):
-    col1, col2, col3 = st.columns(3)
-    user_inputs = {}
+with tab1:
+    st.markdown("### Masukkan Data Hasil Pengujian")
+    st.caption("Gunakan nilai default di bawah ini untuk simulasi cepat (Kondisi Air Normal).")
     
-    for i, col_name in enumerate(info['numeric_cols']):
-        target_col = [col1, col2, col3][i % 3]
-        user_inputs[col_name] = target_col.number_input(
-            label=f"{col_name.upper()}",
-            value=default_vals.get(col_name, 0.0),
-            format="%.2f",
-            help=f"Masukkan nilai {col_name.upper()}"
+    with st.form("input_form"):
+        # Penentuan nilai default untuk uji cepat
+        default_vals = {
+            'ph': 7.20, 'do': 6.50, 'bod': 2.10, 'tc': 50.0, 
+            'tn': 1.20, 'tp': 0.05, 'ts': 150.0, 'turb': 4.50, 'temp': 25.0
+        }
+        
+        # Grid input 3 kolom
+        col1, col2, col3 = st.columns(3)
+        user_inputs = {}
+        
+        for i, col_name in enumerate(info['numeric_cols']):
+            target_col = [col1, col2, col3][i % 3]
+            user_inputs[col_name] = target_col.number_input(
+                f"{col_name.upper()}", 
+                value=default_vals.get(col_name, 0.0), 
+                format="%.2f",
+                help=f"Parameter konsentrasi {col_name}"
+            )
+            
+        st.markdown("---")
+        land_use_options = ohe.categories_[0].tolist()
+        user_inputs['macro_land_use'] = st.selectbox(
+            "Macro Land Use (Penggunaan Lahan Sekitar)", 
+            land_use_options,
+            index=0
         )
-    
-    st.markdown("---")
-    land_use_options = ohe.categories_[0].tolist()
-    user_inputs['macro_land_use'] = st.selectbox(
-        label="Klasifikasi Penggunaan Lahan (Macro Land Use)",
-        options=land_use_options,
-        index=0,
-        help="Pilih tipe penggunaan lahan di sekitar sumber air."
-    )
-    
-    submitted = st.form_submit_button("Jalankan Klasifikasi")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        submit = st.form_submit_button("ANALISIS KUALITAS AIR")
 
-if submitted:
+# 6. PROCESSING & OUTPUT
+if submit:
     # Preprocessing
     input_df = pd.DataFrame([user_inputs])
     X_num = input_df[info['numeric_cols']]
@@ -251,142 +162,74 @@ if submitted:
     X_num_scaled = scaler.transform(X_num)
     X_cat_encoded = ohe.transform(X_cat)
     X_final = np.hstack([X_num_scaled, X_cat_encoded])
-    
-    # Ringkasan input
-    st.markdown("""
-    <h3><i class="bi bi-table"></i> 2. Ringkasan Parameter Input</h3>
-    """, unsafe_allow_html=True)
-    with st.expander("Lihat detail nilai input yang digunakan", expanded=False):
-        summary_df = pd.DataFrame([user_inputs]).T.reset_index()
-        summary_df.columns = ['Parameter', 'Nilai']
-        st.dataframe(summary_df, use_container_width=True, hide_index=True)
-    
-    st.markdown("""
-    <h3><i class="bi bi-diagram-3"></i> 3. Hasil Klasifikasi Komparatif (3 Algoritma)</h3>
-    """, unsafe_allow_html=True)
-    
-    # Tampilkan hasil dalam 3 kolom
-    cols = st.columns(3)
-    results = []
-    
-    for idx, (model_name, model) in enumerate(models.items()):
-        pred_raw = model.predict(X_final)
-        if isinstance(pred_raw, np.ndarray):
-            pred_idx = int(pred_raw.flatten()[0]) if pred_raw.ndim > 1 else int(pred_raw[0])
-        else:
-            pred_idx = int(pred_raw)
-        
-        label = le.inverse_transform([pred_idx])[0].upper()
-        
-        confidence = None
-        if hasattr(model, "predict_proba"):
-            proba = model.predict_proba(X_final)[0]
-            confidence = proba[pred_idx] * 100
-        
-        results.append({
-            "Model": model_name,
-            "Prediksi": label,
-            "Confidence (%)": confidence if confidence is not None else None,
-            "Indeks Kelas": pred_idx
-        })
-        
-        # Warna status
-        if label in ["EXCELLENT", "GOOD"]:
-            color = "#15803d"
-            icon = "bi bi-check-circle-fill"
-        elif label in ["MODERATE", "FAIR"]:
-            color = "#d97706"
-            icon = "bi bi-exclamation-triangle-fill"
-        else:
-            color = "#b91c1c"
-            icon = "bi bi-x-circle-fill"
-        
-        with cols[idx]:
-            st.markdown(f"""
-            <div class='card'>
-                <div class='model-name'><i class="bi bi-ml-model"></i> {model_name}</div>
-                <hr>
-                <div class='status-label'>Status Kualitas Air (Multi-Kelas)</div>
-                <div class='verdict' style='color:{color};'>
-                    <i class="{icon}" style="font-size: 1.5rem;"></i> {label}
-                </div>
-            """, unsafe_allow_html=True)
-            
-            if confidence is not None:
-                st.markdown(f"""
-                <div class='confidence'>
-                    <i class="bi bi-bar-chart"></i> Tingkat Keyakinan: {confidence:.2f}%
-                </div>
-                <div class='progress-bar-bg'>
-                    <div class='progress-fill' style='width:{confidence:.2f}%;'></div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("<div class='confidence'><i class='bi bi-question-circle'></i> Probabilitas tidak tersedia</div>", unsafe_allow_html=True)
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-    
-    # --- Tabel perbandingan ringkas dan konsistensi ---
-    st.markdown("""
-    <h3><i class="bi bi-bar-chart-steps"></i> 4. Perbandingan & Konsistensi Prediksi</h3>
-    """, unsafe_allow_html=True)
-    
-    results_df = pd.DataFrame(results)
-    results_df = results_df.set_index("Model")
-    st.dataframe(results_df, use_container_width=True)
-    
-    # Cek apakah semua model memberikan prediksi sama
-    unique_preds = results_df['Prediksi'].nunique()
-    if unique_preds == 1:
-        st.markdown("""
-        <div class="custom-info" style="background-color:#e0f2e0; border-left-color:#15803d;">
-            <i class="bi bi-check2-all"></i> <strong>Konsisten:</strong> Ketiga model sepakat memprediksi kelas yang sama.
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div class="custom-info" style="background-color:#fff3cd; border-left-color:#d97706;">
-            <i class="bi bi-exclamation-triangle"></i> <strong>Perbedaan prediksi:</strong> Model memberikan hasil berbeda. 
-            Perhatikan tingkat keyakinan masing-masing model untuk menentukan keputusan akhir.
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Tampilkan probabilitas per kelas jika tersedia (opsional untuk satu model)
-    st.markdown("""
-    <h3><i class="bi bi-graph-up"></i> 5. Detail Probabilitas per Kelas (Model dengan confidence tertinggi)</h3>
-    """, unsafe_allow_html=True)
-    # Cari model dengan confidence tertinggi
-    best_model_row = results_df.dropna(subset=['Confidence (%)']).iloc[0] if not results_df['Confidence (%)'].isna().all() else None
-    if best_model_row is not None:
-        best_model_name = best_model_row.name
-        best_model = models[best_model_name]
-        if hasattr(best_model, "predict_proba"):
-            proba_all = best_model.predict_proba(X_final)[0]
-            proba_df = pd.DataFrame({
-                "Kelas": [c.upper() for c in le.classes_],
-                "Probabilitas (%)": proba_all * 100
-            }).sort_values("Probabilitas (%)", ascending=False)
-            st.dataframe(proba_df, use_container_width=True, hide_index=True)
-            # Visualisasi sederhana dengan st.bar_chart
-            st.bar_chart(proba_df.set_index("Kelas"))
-    else:
-        st.info("Tidak ada informasi probabilitas dari model yang tersedia.")
-    
-    # Metadata teknis
-    with st.expander("Lihat metadata vektor input (setelah normalisasi & encoding)"):
-        st.code(str(X_final), language="python")
-else:
-    st.markdown("""
-    <div class="custom-info">
-        <i class="bi bi-info-circle"></i> Silakan masukkan parameter atau gunakan nilai default, 
-        lalu tekan <strong>Jalankan Klasifikasi</strong> untuk membandingkan prediksi dari LightGBM, CatBoost, dan HistGradientBoosting.
-    </div>
-    """, unsafe_allow_html=True)
 
-# Footer
-st.markdown("""
-<div class='footer'>
-    <i class="bi bi-building"></i> Laboratorium Komputasi - Teknik Informatika - Universitas Halu Oleo<br>
-    <i class="bi bi-diagram-3"></i> Algoritma: LightGBM, CatBoost, HistGradientBoosting | Klasifikasi Multi-Kelas
-</div>
+    # Tampilkan Hasil di Tab 2
+    with tab2:
+        st.markdown("### Perbandingan Performa Algoritma")
+        res_cols = st.columns(3)
+        
+        all_results = []
+        
+        for idx, (name, model) in enumerate(models.items()):
+            # Prediksi
+            raw_pred = model.predict(X_final)
+            if isinstance(raw_pred, np.ndarray):
+                pred_idx = int(raw_pred.flatten()[0]) if raw_pred.ndim > 1 else int(raw_pred[0])
+            else:
+                pred_idx = int(raw_pred)
+            
+            label = le.inverse_transform([pred_idx])[0].upper()
+            
+            # Tentukan warna badge
+            badge_class = "moderate"
+            if "EXCELENT" in label or "GOOD" in label: badge_class = "excellent"
+            elif "BAD" in label: badge_class = "poor"
+            
+            # Hitung Probabilitas
+            prob = model.predict_proba(X_final)[0][pred_idx] * 100
+
+            with res_cols[idx]:
+                st.markdown(f"""
+                    <div class="algo-card">
+                        <p style="color: #64748B; font-weight: bold; margin-bottom: 5px;">{name}</p>
+                        <hr style="margin: 10px 0;">
+                        <p style="font-size: 0.8rem; margin-bottom: 0;">Status Klasifikasi:</p>
+                        <div class="status-badge {badge_class}">{label}</div>
+                        <p style="margin-top: 15px; font-size: 0.9rem; color: #475569;">
+                            Confidence: <strong>{prob:.2f}%</strong>
+                        </p>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+            all_results.append({"Model": name, "Status": label, "Confidence": prob})
+
+    # Detail di Tab 3
+    with tab3:
+        st.markdown("### Distribusi Probabilitas (Model Terbaik: CatBoost)")
+        best_model = models["CatBoost"]
+        probs = best_model.predict_proba(X_final)[0]
+        classes = [c.upper() for c in le.classes_]
+        
+        fig = go.Figure([go.Bar(x=classes, y=probs*100, marker_color='#1E3A8A')])
+        fig.update_layout(
+            title="Probabilitas Tiap Kelas (%)",
+            template="plotly_white",
+            height=400,
+            yaxis_title="Persentase (%)"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        with st.expander("Lihat Metadata Vektor Input"):
+            st.code(str(X_final))
+
+else:
+    with tab2:
+        st.info("Silakan lengkapi data pada tab 'Input Parameter' dan klik tombol Analisis.")
+
+# 7. FOOTER
+st.markdown(f"""
+    <div style="margin-top: 50px; padding: 20px; text-align: center; color: #94A3B8; border-top: 1px solid #E2E8F0;">
+        <p>Aplikasi Lab Komputasi | Informatika Universitas Halu Oleo | 2024</p>
+        <small>Target Akurasi Model: {info['best_accuracy']:.2%}</small>
+    </div>
 """, unsafe_allow_html=True)
