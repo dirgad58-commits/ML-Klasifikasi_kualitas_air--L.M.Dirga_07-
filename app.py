@@ -5,93 +5,130 @@ import pickle
 import json
 import os
 
-# Konfigurasi Halaman
-st.set_page_config(page_title="Water Quality Classifier", layout="wide")
+# Konfigurasi Halaman Profesional
+st.set_page_config(
+    page_title="Sistem Klasifikasi Kualitas Air",
+    layout="centered", # Menggunakan layout centered agar fokus di tengah
+    initial_sidebar_state="collapsed"
+)
 
-# Fungsi untuk memuat aset dari dalam folder 'models'
+# Custom CSS untuk tampilan akademis
+st.markdown("""
+    <style>
+    .main {
+        background-color: #ffffff;
+    }
+    h1 {
+        color: #1E3A8A;
+        font-family: 'Times New Roman', serif;
+        text-align: center;
+        border-bottom: 2px solid #1E3A8A;
+        padding-bottom: 10px;
+    }
+    .stButton>button {
+        width: 100%;
+        border-radius: 5px;
+        height: 3em;
+        background-color: #1E3A8A;
+        color: white;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 @st.cache_resource
 def load_assets():
-    # Tentukan jalur folder
     model_path = "models"
-    
-    # Load Metadata JSON
     with open(os.path.join(model_path, 'feature_info.json'), 'r') as f:
         info = json.load(f)
     
-    # Load Pre-processing tools
     scaler = pickle.load(open(os.path.join(model_path, 'scaler.pkl'), 'rb'))
     ohe = pickle.load(open(os.path.join(model_path, 'ohe.pkl'), 'rb'))
     le = pickle.load(open(os.path.join(model_path, 'label_encoder.pkl'), 'rb'))
     
-    # Memuat model terbaik (berdasarkan data di feature_info.json)
-    # Secara dinamis mengambil file catboost.pkl (atau sesuai best_model_name)
+    # Load Best Model (CatBoost)
     model_file = info['best_model_name'].lower() + ".pkl"
     model = pickle.load(open(os.path.join(model_path, model_file), 'rb'))
     
     return info, scaler, ohe, le, model
 
-# Menjalankan fungsi load
 try:
     info, scaler, ohe, le, model = load_assets()
-except FileNotFoundError as e:
-    st.error(f"Gagal memuat file: {e}. Pastikan folder 'models' sudah ada di GitHub.")
+except Exception as e:
+    st.error(f"Sistem gagal memuat modul model: {e}")
     st.stop()
 
-st.title("💧 Water Quality Classification AI")
-st.info(f"Menggunakan Model: **{info['best_model_name']}** | Akurasi: {info['best_accuracy']:.2%}")
+# Header Utama
+st.title("Sistem Pakar Klasifikasi Kualitas Air")
+st.markdown(f"""
+    **Informasi Model:** {info['best_model_name']} Classifier  
+    **Akurasi Pengujian:** {info['best_accuracy']:.2%}  
+    ---
+""")
 
-# --- Bagian Sidebar untuk Input ---
-st.sidebar.header("Input Parameter")
-
-def get_user_input():
-    inputs = {}
+# Bagian Form Input di Tengah Halaman
+st.subheader("Parameter Input Laboratorium")
+with st.form("classification_form"):
     
-    # Input Numerik berdasarkan data di feature_info.json
-    st.sidebar.subheader("Fitur Numerik")
-    for col in info['numeric_cols']:
-        inputs[col] = st.sidebar.number_input(f"Nilai {col.upper()}", value=0.0, format="%.4f")
-        
-    # Input Kategorikal (macro_land_use)
-    st.sidebar.subheader("Fitur Kategorikal")
-    for col in info['categorical_cols']:
-        # Ambil kategori asli dari OneHotEncoder
+    # Mengatur input numerik dalam 3 kolom agar rapi
+    col1, col2, col3 = st.columns(3)
+    
+    user_inputs = {}
+    
+    # Distribusi input numerik ke kolom
+    for i, col_name in enumerate(info['numeric_cols']):
+        current_col = [col1, col2, col3][i % 3]
+        user_inputs[col_name] = current_col.number_input(
+            f"{col_name.upper()}", 
+            value=0.0, 
+            format="%.4f",
+            help=f"Masukkan nilai konsentrasi {col_name}"
+        )
+
+    # Input Kategorikal di bawahnya
+    st.markdown("---")
+    for col_name in info['categorical_cols']:
         options = ohe.categories_[0].tolist()
-        inputs[col] = st.sidebar.selectbox(f"Pilih {col}", options)
-        
-    return pd.DataFrame([inputs])
+        user_inputs[col_name] = st.selectbox(
+            f"Kategori {col_name.replace('_', ' ').title()}", 
+            options
+        )
 
-input_df = get_user_input()
+    # Tombol Aksi
+    submit_button = st.form_submit_button("Lakukan Klasifikasi")
 
-# --- Tampilan Utama ---
-st.subheader("Data yang Akan Diprediksi")
-st.dataframe(input_df)
-
-if st.button("Analisis Kualitas Air", type="primary"):
-    # 1. Pre-processing
+if submit_button:
+    # Pre-processing
+    input_df = pd.DataFrame([user_inputs])
+    
     X_num = input_df[info['numeric_cols']]
     X_cat = input_df[info['categorical_cols']]
     
-    # Transformasi menggunakan scaler dan ohe yang dimuat dari folder models
     X_num_scaled = scaler.transform(X_num)
     X_cat_encoded = ohe.transform(X_cat)
     
-    # Gabungkan kembali fitur
     X_final = np.hstack([X_num_scaled, X_cat_encoded])
     
-    # 2. Prediksi
+    # Proses Klasifikasi
     prediction_idx = model.predict(X_final)
     
-    # Pastikan format indeks benar (untuk CatBoost terkadang array 2D)
     if isinstance(prediction_idx, np.ndarray):
         prediction_idx = int(prediction_idx.flatten()[0])
         
-    # 3. Decode Label (Mengubah angka kembali ke 'good', 'bad', dll)
     result_label = le.inverse_transform([prediction_idx])[0]
     
-    # Tampilkan Hasil dengan gaya visual
-    st.markdown("---")
-    if result_label.lower() in ['excelent', 'good']:
-        st.success(f"### Hasil Prediksi: **{result_label.upper()}**")
-        st.balloons()
+    # Tampilan Hasil Klasifikasi
+    st.markdown("### Hasil Analisis Sistem")
+    
+    # Logika warna berdasarkan tingkat kualitas
+    if result_label.lower() in ['excellent', 'good']:
+        st.success(f"Klasifikasi Kualitas: **{result_label.upper()}**")
+    elif result_label.lower() in ['medium']:
+        st.info(f"Klasifikasi Kualitas: **{result_label.upper()}**")
     else:
-        st.warning(f"### Hasil Prediksi: **{result_label.upper()}**")
+        st.error(f"Klasifikasi Kualitas: **{result_label.upper()}**")
+    
+    st.caption("Hasil klasifikasi berdasarkan data masukan laboratorium menggunakan algoritma mesin pembelajaran.")
+
+# Footer Akademis
+st.markdown("---")
+st.markdown("<p style='text-align: center; color: gray;'>Universitas Halu Oleo - Teknik Informatika</p>", unsafe_allow_html=True)
