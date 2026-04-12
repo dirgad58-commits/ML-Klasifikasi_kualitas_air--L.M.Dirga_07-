@@ -12,7 +12,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# CSS profesional
+# --- Tambahkan Bootstrap Icons dan Font Awesome (opsional) ---
+st.markdown("""
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+""", unsafe_allow_html=True)
+
+# CSS profesional (dengan penyesuaian untuk ikon)
 st.markdown("""
     <style>
     .main { background-color: #f0f2f6; }
@@ -111,6 +117,16 @@ st.markdown("""
     hr {
         margin: 10px 0;
     }
+    /* Custom alert tanpa emoji */
+    .custom-info {
+        background-color: #e6f0fa;
+        border-left: 4px solid #1e3a8a;
+        padding: 0.8rem 1rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+        font-size: 0.9rem;
+        color: #0c4e6e;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -135,14 +151,33 @@ def load_all_assets():
 
 try:
     info, scaler, ohe, le, models = load_all_assets()
-    st.success("Semua model dan preprocessor berhasil dimuat.")
+    # Mengganti st.success dengan custom HTML tanpa emoji
+    st.markdown("""
+    <div class="custom-info" style="background-color:#e0f2e0; border-left-color:#15803d;">
+        <i class="bi bi-check-circle-fill" style="color:#15803d;"></i> Semua model dan preprocessor berhasil dimuat.
+    </div>
+    """, unsafe_allow_html=True)
 except Exception as e:
-    st.error(f"Kesalahan fatal: Gagal memuat komponen. Detail: {e}")
+    st.markdown(f"""
+    <div class="custom-info" style="background-color:#fee2e2; border-left-color:#b91c1c;">
+        <i class="bi bi-exclamation-triangle-fill" style="color:#b91c1c;"></i> Kesalahan fatal: Gagal memuat komponen. Detail: {e}
+    </div>
+    """, unsafe_allow_html=True)
     st.stop()
 
-# Header
-st.markdown("<div class='title'>Analisis Klasifikasi Kualitas Air</div>", unsafe_allow_html=True)
-st.markdown("<div class='subtitle'>Perbandingan Tiga Algoritma Gradient Boosting | Prediksi Berbasis Fitur Fisika-Kimia Air</div>", unsafe_allow_html=True)
+# Header dengan ikon
+st.markdown("""
+<div class='title'>
+    <i class="bi bi-droplet-half" style="font-size: 2rem; margin-right: 10px;"></i> 
+    Analisis Klasifikasi Kualitas Air
+</div>
+""", unsafe_allow_html=True)
+st.markdown("""
+<div class='subtitle'>
+    <i class="bi bi-bar-chart-steps"></i> Perbandingan Tiga Algoritma Gradient Boosting 
+    | <i class="bi bi-cpu"></i> Prediksi Berbasis Fitur Fisika-Kimia Air
+</div>
+""", unsafe_allow_html=True)
 
 # Nilai default untuk uji cepat (kondisi air baik)
 default_vals = {
@@ -157,8 +192,18 @@ default_vals = {
     'temp': 25.0
 }
 
-st.markdown("### 1. Parameter Masukan (Data Laboratorium)")
-st.info("Nilai default di bawah ini mencerminkan kondisi air normal / baik. Anda dapat mengubahnya untuk menguji berbagai skenario kualitas air.")
+# Section dengan ikon
+st.markdown("""
+<h3><i class="bi bi-pencil-square" style="margin-right: 8px;"></i> 1. Parameter Masukan (Data Laboratorium)</h3>
+""", unsafe_allow_html=True)
+
+# Custom info tanpa emoji
+st.markdown("""
+<div class="custom-info">
+    <i class="bi bi-info-circle-fill" style="margin-right: 8px;"></i> 
+    Nilai default di bawah mencerminkan kondisi air normal / baik. Anda dapat mengubahnya untuk menguji berbagai skenario kualitas air.
+</div>
+""", unsafe_allow_html=True)
 
 with st.form("input_form"):
     col1, col2, col3 = st.columns(3)
@@ -197,13 +242,17 @@ if submitted:
     X_final = np.hstack([X_num_scaled, X_cat_encoded])
     
     # --- Ringkasan input ---
-    st.markdown("### 2. Ringkasan Parameter Input")
+    st.markdown("""
+    <h3><i class="bi bi-table"></i> 2. Ringkasan Parameter Input</h3>
+    """, unsafe_allow_html=True)
     with st.expander("Lihat detail nilai input yang digunakan", expanded=False):
         summary_df = pd.DataFrame([user_inputs]).T.reset_index()
         summary_df.columns = ['Parameter', 'Nilai']
         st.dataframe(summary_df, use_container_width=True, hide_index=True)
     
-    st.markdown("### 3. Hasil Klasifikasi Komparatif")
+    st.markdown("""
+    <h3><i class="bi bi-diagram-3"></i> 3. Hasil Klasifikasi Komparatif</h3>
+    """, unsafe_allow_html=True)
     
     # Tampilkan hasil dalam 3 kolom
     cols = st.columns(3)
@@ -224,9 +273,6 @@ if submitted:
         if hasattr(model, "predict_proba"):
             proba = model.predict_proba(X_final)[0]
             confidence = proba[pred_idx] * 100
-        elif hasattr(model, "predict") and hasattr(model, "decision_function"):
-            # Alternatif untuk model tanpa proba langsung
-            pass
         
         results.append({
             "Model": model_name,
@@ -237,35 +283,44 @@ if submitted:
         
         # Warna status
         if label in ["EXCELLENT", "GOOD"]:
-            color = "#15803d"  # hijau tua
+            color = "#15803d"
+            icon = "bi bi-check-circle-fill"
         elif label in ["MODERATE", "FAIR"]:
-            color = "#d97706"  # orange
+            color = "#d97706"
+            icon = "bi bi-exclamation-triangle-fill"
         else:
-            color = "#b91c1c"  # merah
+            color = "#b91c1c"
+            icon = "bi bi-x-circle-fill"
         
         with cols[idx]:
             st.markdown(f"""
             <div class='card'>
-                <div class='model-name'>{model_name}</div>
+                <div class='model-name'><i class="bi bi-ml-model"></i> {model_name}</div>
                 <hr>
                 <div class='status-label'>Status Kualitas Air</div>
-                <div class='verdict' style='color:{color};'>{label}</div>
+                <div class='verdict' style='color:{color};'>
+                    <i class="{icon}" style="font-size: 1.5rem;"></i> {label}
+                </div>
             """, unsafe_allow_html=True)
             
             if confidence is not None:
                 st.markdown(f"""
-                <div class='confidence'>Tingkat Keyakinan: {confidence:.2f}%</div>
+                <div class='confidence'>
+                    <i class="bi bi-bar-chart"></i> Tingkat Keyakinan: {confidence:.2f}%
+                </div>
                 <div class='progress-bar-bg'>
                     <div class='progress-fill' style='width:{confidence:.2f}%;'></div>
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                st.markdown("<div class='confidence'>Informasi probabilitas tidak tersedia</div>", unsafe_allow_html=True)
+                st.markdown("<div class='confidence'><i class='bi bi-question-circle'></i> Informasi probabilitas tidak tersedia</div>", unsafe_allow_html=True)
             
             st.markdown("</div>", unsafe_allow_html=True)
     
     # --- Tabel perbandingan ringkas ---
-    st.markdown("### 4. Perbandingan Ringkas")
+    st.markdown("""
+    <h3><i class="bi bi-table"></i> 4. Perbandingan Ringkas</h3>
+    """, unsafe_allow_html=True)
     results_df = pd.DataFrame(results)
     results_df = results_df.set_index("Model")
     st.dataframe(results_df, use_container_width=True)
@@ -275,12 +330,17 @@ if submitted:
         st.code(str(X_final), language="python")
     
 else:
-    st.info("Silakan masukkan parameter atau gunakan nilai default, lalu tekan tombol 'Jalankan Klasifikasi' untuk melihat hasil prediksi dari tiga algoritma.")
+    st.markdown("""
+    <div class="custom-info">
+        <i class="bi bi-info-circle"></i> Silakan masukkan parameter atau gunakan nilai default, 
+        lalu tekan tombol <strong>Jalankan Klasifikasi</strong> untuk melihat hasil prediksi dari tiga algoritma.
+    </div>
+    """, unsafe_allow_html=True)
 
 # Footer
 st.markdown("""
 <div class='footer'>
-    Laboratorium Komputasi - Teknik Informatika - Universitas Halu Oleo<br>
-    Model gradient boosting: CatBoost, LightGBM, HistGradientBoosting
+    <i class="bi bi-building"></i> Laboratorium Komputasi - Teknik Informatika - Universitas Halu Oleo<br>
+    <i class="bi bi-diagram-3"></i> Model gradient boosting: CatBoost, LightGBM, HistGradientBoosting
 </div>
 """, unsafe_allow_html=True)
