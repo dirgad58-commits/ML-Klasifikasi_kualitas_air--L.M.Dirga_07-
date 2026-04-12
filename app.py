@@ -19,8 +19,12 @@ st.markdown("""
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    * { font-family: 'Inter', sans-serif; }
-    .main { background: linear-gradient(145deg, #f4f9ff 0%, #e9f0fa 100%); }
+    * {
+        font-family: 'Inter', sans-serif;
+    }
+    .main {
+        background: linear-gradient(145deg, #f4f9ff 0%, #e9f0fa 100%);
+    }
     .hero {
         background: linear-gradient(105deg, #0b2b44 0%, #1b4a6e 100%);
         border-radius: 32px;
@@ -29,8 +33,17 @@ st.markdown("""
         box-shadow: 0 20px 35px -10px rgba(0,0,0,0.15);
         color: white;
     }
-    .hero h1 { font-size: 2.8rem; font-weight: 700; margin-bottom: 0.5rem; }
-    .hero p { font-size: 1.05rem; opacity: 0.9; }
+    .hero h1 {
+        font-size: 2.8rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.02em;
+    }
+    .hero p {
+        font-size: 1.05rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
     .hero-badge {
         background: rgba(255,255,240,0.2);
         backdrop-filter: blur(8px);
@@ -74,7 +87,12 @@ st.markdown("""
         border-radius: 40px;
         margin-bottom: 12px;
     }
-    .verdict { font-size: 1.8rem; font-weight: 800; text-align: center; margin: 10px 0; }
+    .verdict {
+        font-size: 1.8rem;
+        font-weight: 800;
+        text-align: center;
+        margin: 10px 0;
+    }
     .progress-bar-bg {
         background-color: #e2e8f0;
         border-radius: 30px;
@@ -82,7 +100,11 @@ st.markdown("""
         overflow: hidden;
         margin: 10px 0;
     }
-    .progress-fill { height: 100%; border-radius: 30px; width: 0%; }
+    .progress-fill {
+        height: 100%;
+        border-radius: 30px;
+        width: 0%;
+    }
     .info-box {
         background: #fefce8;
         border-left: 5px solid #eab308;
@@ -173,51 +195,55 @@ except Exception as e:
     """, unsafe_allow_html=True)
     st.stop()
 
-# Ambil daftar kelas dari label encoder (pastikan urutannya sesuai)
-class_names = [c.lower() for c in le.classes_]  # simpan dalam lowercase untuk pencocokan
-# Tampilkan badge dengan kapitalisasi awal
-display_classes = [c.capitalize() if c != 'very_bad' else 'Very Bad' for c in class_names]
-if 'excelent' in class_names:
-    display_classes = [c.replace('Excelent', 'Excellent') for c in display_classes]
+class_names = [c.upper() for c in le.classes_]
 
-# --- PRESET dengan nilai yang sesuai untuk setiap kelas (berdasarkan logika) ---
-# Urutan: excellent, good, medium, bad, very_bad (sesuai dengan label encoder)
+# --- PRESET LENGKAP (termasuk macro_land_use) ---
 presets = {
-    "Excellent (Sangat Baik)": {
-        'ph': 7.5, 'do': 8.5, 'bod': 0.5, 'tc': 10.0, 'tn': 0.3, 'tp': 0.01, 'ts': 50.0, 'turb': 1.0, 'temp': 23.0
+    "Custom (Manual Input)": None,
+    "Sampel A: Excellent Condition": {
+        'ph': 7.2, 'do': 8.5, 'bod': 0.5, 'tc': 20.0, 'tn': 0.2, 'tp': 0.01, 'ts': 45.0, 'turb': 0.8, 'temp': 21.0, 'macro_land_use': 'agriculture'
     },
-    "Good (Baik)": {
-        'ph': 7.2, 'do': 6.8, 'bod': 2.0, 'tc': 45.0, 'tn': 1.0, 'tp': 0.04, 'ts': 140.0, 'turb': 4.0, 'temp': 25.0
+    "Sampel B: Good/Normal Condition": {
+        'ph': 7.4, 'do': 6.8, 'bod': 1.8, 'tc': 150.0, 'tn': 0.9, 'tp': 0.06, 'ts': 110.0, 'turb': 4.2, 'temp': 24.5, 'macro_land_use': 'agriculture'
     },
-    "Medium (Sedang)": {
-        'ph': 6.9, 'do': 4.5, 'bod': 4.5, 'tc': 110.0, 'tn': 2.5, 'tp': 0.15, 'ts': 260.0, 'turb': 9.0, 'temp': 26.0
+    "Sampel C: Moderate/Medium Pollution": {
+        'ph': 7.9, 'do': 4.2, 'bod': 4.5, 'tc': 1200.0, 'tn': 2.8, 'tp': 0.25, 'ts': 320.0, 'turb': 15.0, 'temp': 27.0, 'macro_land_use': 'industrialization'
     },
-    "Bad (Buruk)": {
-        'ph': 6.3, 'do': 2.8, 'bod': 8.5, 'tc': 220.0, 'tn': 4.5, 'tp': 0.40, 'ts': 450.0, 'turb': 18.0, 'temp': 27.5
+    "Sampel D: Bad/Heavy Pollution": {
+        'ph': 6.2, 'do': 2.1, 'bod': 14.0, 'tc': 25000.0, 'tn': 7.5, 'tp': 1.2, 'ts': 650.0, 'turb': 45.0, 'temp': 29.0, 'macro_land_use': 'industrial'
     },
-    "Very Bad (Sangat Buruk)": {
-        'ph': 5.8, 'do': 1.2, 'bod': 14.0, 'tc': 450.0, 'tn': 9.0, 'tp': 0.9, 'ts': 800.0, 'turb': 35.0, 'temp': 29.0
+    "Sampel E: Very Bad/Toxic Condition": {
+        'ph': 5.2, 'do': 0.4, 'bod': 35.0, 'tc': 150000.0, 'tn': 18.0, 'tp': 4.5, 'ts': 1450.0, 'turb': 110.0, 'temp': 33.0, 'macro_land_use': 'industrial'
     }
 }
 
-# --- Input Form ---
+# --- Input Form dengan Glass Card ---
 st.markdown('<div class="glass-card">', unsafe_allow_html=True)
 st.markdown("### <i class='bi bi-sliders2'></i> Parameter Masukan", unsafe_allow_html=True)
 
 col_preset, _ = st.columns([1, 2])
 with col_preset:
     selected_preset = st.selectbox(
-        "Preset Cepat (5 Kelas)",
+        "Preset Cepat",
         options=list(presets.keys()),
-        index=1  # default Good
+        index=1  # default Sampel B
     )
 
-default_vals = presets[selected_preset].copy()
+# Ambil nilai default dari preset (jika bukan Custom)
+if selected_preset != "Custom (Manual Input)":
+    default_vals = presets[selected_preset].copy()
+else:
+    # Nilai default untuk manual (kondisi normal)
+    default_vals = {
+        'ph': 7.2, 'do': 6.5, 'bod': 2.0, 'tc': 100.0, 'tn': 1.0, 'tp': 0.05, 'ts': 150.0, 'turb': 5.0, 'temp': 25.0, 'macro_land_use': 'agriculture'
+    }
 
 with st.form("input_form"):
     col1, col2, col3 = st.columns(3, gap="medium")
     user_inputs = {}
-    for i, col_name in enumerate(info['numeric_cols']):
+    # Kolom numerik (semua kecuali macro_land_use)
+    numeric_cols = [c for c in info['numeric_cols'] if c != 'macro_land_use']
+    for i, col_name in enumerate(numeric_cols):
         target_col = [col1, col2, col3][i % 3]
         with target_col:
             user_inputs[col_name] = st.number_input(
@@ -227,11 +253,12 @@ with st.form("input_form"):
                 help=f"Masukkan nilai {col_name.upper()}"
             )
     st.markdown("---")
+    # Input macro_land_use
     land_use_options = ohe.categories_[0].tolist()
     user_inputs['macro_land_use'] = st.selectbox(
         label="Penggunaan Lahan (Macro Land Use)",
         options=land_use_options,
-        index=0
+        index=land_use_options.index(default_vals['macro_land_use']) if default_vals['macro_land_use'] in land_use_options else 0
     )
     submitted = st.form_submit_button("Jalankan Klasifikasi", use_container_width=True)
 st.markdown('</div>', unsafe_allow_html=True)
@@ -250,7 +277,7 @@ def predict_all_models(models, X_final, le):
         else:
             pred_idx = int(pred_raw)
         
-        label = le.inverse_transform([pred_idx])[0].lower()  # simpan lowercase
+        label = le.inverse_transform([pred_idx])[0].upper()
         confidence = None
         proba = None
         if hasattr(model, "predict_proba"):
@@ -274,14 +301,9 @@ if submitted:
     X_final = np.hstack([X_num_scaled, X_cat_encoded])
 
     results = predict_all_models(models, X_final, le)
-    # Buat dataframe untuk tampilan (ubah label menjadi huruf besar untuk tampilan)
-    results_df = pd.DataFrame([{
-        "Model": r["Model"],
-        "Prediksi": r["Prediksi"].upper(),
-        "Confidence (%)": r["Confidence (%)"]
-    } for r in results]).set_index("Model")
+    results_df = pd.DataFrame([{k: v for k, v in r.items() if k != 'probabilities'} for r in results]).set_index("Model")
 
-    # --- Tabs ---
+    # --- Tabs untuk tampilan rapi ---
     tab1, tab2, tab3 = st.tabs(["Model Comparison", "Class Probabilities", "Input & Metadata"])
 
     with tab1:
@@ -289,25 +311,21 @@ if submitted:
         cols = st.columns(3, gap="large")
         for idx, res in enumerate(results):
             model_name = res["Model"]
-            label = res["Prediksi"].upper()
+            label = res["Prediksi"]
             confidence = res["Confidence (%)"]
-            # Warna berdasarkan label asli (lowercase)
-            if label in ["EXCELENT", "GOOD"]:
+            # Warna berdasarkan label (sesuaikan dengan kelas yang ada)
+            if label in ["EXCELLENT", "GOOD"]:
                 color = "#15803d"
                 icon = "bi bi-check-circle-fill"
                 bg_light = "#dcfce7"
-            elif label == "MEDIUM":
+            elif label in ["MODERATE", "MEDIUM", "FAIR"]:
                 color = "#d97706"
                 icon = "bi bi-exclamation-triangle-fill"
                 bg_light = "#fef3c7"
-            elif label == "BAD":
+            else:
                 color = "#b91c1c"
                 icon = "bi bi-x-circle-fill"
                 bg_light = "#fee2e2"
-            else:  # VERY_BAD
-                color = "#7f1d1d"
-                icon = "bi bi-skull"
-                bg_light = "#fecaca"
             with cols[idx]:
                 st.markdown(f"""
                 <div class='model-card' style="border-top: 4px solid {color};">
@@ -358,10 +376,8 @@ if submitted:
             best_model = models[best_model_name]
             if hasattr(best_model, "predict_proba"):
                 proba_all = best_model.predict_proba(X_final)[0] * 100
-                # Gunakan kelas asli dari label encoder
-                original_classes = le.classes_
                 proba_df = pd.DataFrame({
-                    "Kelas": [c.capitalize() if c != 'very_bad' else 'Very Bad' for c in original_classes],
+                    "Kelas": [c.upper() for c in le.classes_],
                     "Probabilitas (%)": proba_all
                 }).sort_values("Probabilitas (%)", ascending=False)
                 st.markdown(f"<p><i class='bi bi-star-fill'></i> Model terbaik: <strong>{best_model_name}</strong> (confidence tertinggi)</p>", unsafe_allow_html=True)
