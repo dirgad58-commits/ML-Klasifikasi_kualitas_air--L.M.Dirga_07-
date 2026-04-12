@@ -1,0 +1,30 @@
+{
+  "numeric_cols": [
+    "ph",
+    "do",
+    "bod",
+    "tc",
+    "tn",
+    "tp",
+    "ts",
+    "turb",
+    "temp"
+  ],
+  "categorical_cols": [
+    "macro_land_use"
+  ],
+  "target_classes": [
+    "bad",
+    "excelent",
+    "good",
+    "medium",
+    "very_bad"
+  ],
+  "best_model_name": "CatBoost",
+  "best_accuracy": 0.9338338808071328,
+  "models_available": [
+    "LightGBM",
+    "CatBoost",
+    "HistGradientBoosting"
+  ]
+}
