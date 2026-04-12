@@ -19,13 +19,8 @@ st.markdown("""
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    * {
-        font-family: 'Inter', sans-serif;
-    }
-    .main {
-        background: linear-gradient(145deg, #f4f9ff 0%, #e9f0fa 100%);
-    }
-    /* Hero Section */
+    * { font-family: 'Inter', sans-serif; }
+    .main { background: linear-gradient(145deg, #f4f9ff 0%, #e9f0fa 100%); }
     .hero {
         background: linear-gradient(105deg, #0b2b44 0%, #1b4a6e 100%);
         border-radius: 32px;
@@ -34,17 +29,8 @@ st.markdown("""
         box-shadow: 0 20px 35px -10px rgba(0,0,0,0.15);
         color: white;
     }
-    .hero h1 {
-        font-size: 2.8rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        letter-spacing: -0.02em;
-    }
-    .hero p {
-        font-size: 1.05rem;
-        opacity: 0.9;
-        margin-bottom: 0;
-    }
+    .hero h1 { font-size: 2.8rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .hero p { font-size: 1.05rem; opacity: 0.9; }
     .hero-badge {
         background: rgba(255,255,240,0.2);
         backdrop-filter: blur(8px);
@@ -54,7 +40,6 @@ st.markdown("""
         font-size: 0.8rem;
         margin-top: 0.8rem;
     }
-    /* Glass Card */
     .glass-card {
         background: rgba(255, 255, 255, 0.7);
         backdrop-filter: blur(12px);
@@ -64,7 +49,6 @@ st.markdown("""
         border: 1px solid rgba(255,255,255,0.3);
         margin-bottom: 1.5rem;
     }
-    /* Model Card */
     .model-card {
         background: rgba(255,255,255,0.9);
         backdrop-filter: blur(4px);
@@ -90,12 +74,7 @@ st.markdown("""
         border-radius: 40px;
         margin-bottom: 12px;
     }
-    .verdict {
-        font-size: 1.8rem;
-        font-weight: 800;
-        text-align: center;
-        margin: 10px 0;
-    }
+    .verdict { font-size: 1.8rem; font-weight: 800; text-align: center; margin: 10px 0; }
     .progress-bar-bg {
         background-color: #e2e8f0;
         border-radius: 30px;
@@ -103,11 +82,7 @@ st.markdown("""
         overflow: hidden;
         margin: 10px 0;
     }
-    .progress-fill {
-        height: 100%;
-        border-radius: 30px;
-        width: 0%;
-    }
+    .progress-fill { height: 100%; border-radius: 30px; width: 0%; }
     .info-box {
         background: #fefce8;
         border-left: 5px solid #eab308;
@@ -151,7 +126,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- Hero Section (tanpa emoji) ---
+# --- Hero Section ---
 st.markdown("""
 <div class="hero">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
@@ -198,29 +173,34 @@ except Exception as e:
     """, unsafe_allow_html=True)
     st.stop()
 
-class_names = [c.upper() for c in le.classes_]
+# Ambil daftar kelas dari label encoder (pastikan urutannya sesuai)
+class_names = [c.lower() for c in le.classes_]  # simpan dalam lowercase untuk pencocokan
+# Tampilkan badge dengan kapitalisasi awal
+display_classes = [c.capitalize() if c != 'very_bad' else 'Very Bad' for c in class_names]
+if 'excelent' in class_names:
+    display_classes = [c.replace('Excelent', 'Excellent') for c in display_classes]
 
-# --- Preset nilai untuk 5 kelas kualitas air ---
-# (Sesuaikan dengan domain knowledge Anda)
+# --- PRESET dengan nilai yang sesuai untuk setiap kelas (berdasarkan logika) ---
+# Urutan: excellent, good, medium, bad, very_bad (sesuai dengan label encoder)
 presets = {
     "Excellent (Sangat Baik)": {
-        'ph': 7.4, 'do': 8.0, 'bod': 0.8, 'tc': 20.0, 'tn': 0.5, 'tp': 0.02, 'ts': 80.0, 'turb': 1.5, 'temp': 24.0
+        'ph': 7.5, 'do': 8.5, 'bod': 0.5, 'tc': 10.0, 'tn': 0.3, 'tp': 0.01, 'ts': 50.0, 'turb': 1.0, 'temp': 23.0
     },
     "Good (Baik)": {
-        'ph': 7.2, 'do': 6.5, 'bod': 2.1, 'tc': 50.0, 'tn': 1.2, 'tp': 0.05, 'ts': 150.0, 'turb': 4.5, 'temp': 25.0
+        'ph': 7.2, 'do': 6.8, 'bod': 2.0, 'tc': 45.0, 'tn': 1.0, 'tp': 0.04, 'ts': 140.0, 'turb': 4.0, 'temp': 25.0
     },
-    "Moderate (Sedang)": {
-        'ph': 6.8, 'do': 4.5, 'bod': 4.5, 'tc': 100.0, 'tn': 2.5, 'tp': 0.15, 'ts': 250.0, 'turb': 8.0, 'temp': 26.0
+    "Medium (Sedang)": {
+        'ph': 6.9, 'do': 4.5, 'bod': 4.5, 'tc': 110.0, 'tn': 2.5, 'tp': 0.15, 'ts': 260.0, 'turb': 9.0, 'temp': 26.0
     },
-    "Poor (Buruk)": {
-        'ph': 6.2, 'do': 2.5, 'bod': 8.0, 'tc': 200.0, 'tn': 4.0, 'tp': 0.35, 'ts': 400.0, 'turb': 15.0, 'temp': 27.0
+    "Bad (Buruk)": {
+        'ph': 6.3, 'do': 2.8, 'bod': 8.5, 'tc': 220.0, 'tn': 4.5, 'tp': 0.40, 'ts': 450.0, 'turb': 18.0, 'temp': 27.5
     },
-    "Very Poor (Sangat Buruk)": {
-        'ph': 5.5, 'do': 1.0, 'bod': 15.0, 'tc': 400.0, 'tn': 8.0, 'tp': 0.8, 'ts': 700.0, 'turb': 30.0, 'temp': 28.0
+    "Very Bad (Sangat Buruk)": {
+        'ph': 5.8, 'do': 1.2, 'bod': 14.0, 'tc': 450.0, 'tn': 9.0, 'tp': 0.9, 'ts': 800.0, 'turb': 35.0, 'temp': 29.0
     }
 }
 
-# --- Input Form dengan Glass Card dan Preset ---
+# --- Input Form ---
 st.markdown('<div class="glass-card">', unsafe_allow_html=True)
 st.markdown("### <i class='bi bi-sliders2'></i> Parameter Masukan", unsafe_allow_html=True)
 
@@ -229,7 +209,7 @@ with col_preset:
     selected_preset = st.selectbox(
         "Preset Cepat (5 Kelas)",
         options=list(presets.keys()),
-        index=1
+        index=1  # default Good
     )
 
 default_vals = presets[selected_preset].copy()
@@ -256,20 +236,21 @@ with st.form("input_form"):
     submitted = st.form_submit_button("Jalankan Klasifikasi", use_container_width=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
+# --- Fungsi prediksi yang robust ---
 def predict_all_models(models, X_final, le):
     results = []
     for name, model in models.items():
         pred_raw = model.predict(X_final)
-        # Pastikan pred_raw berupa array 1D dan ambil elemen pertama
+        # Handle berbagai bentuk output
         if isinstance(pred_raw, np.ndarray):
             pred_flat = pred_raw.flatten()
             pred_idx = int(pred_flat[0]) if len(pred_flat) > 0 else int(pred_raw)
         elif isinstance(pred_raw, (list, tuple)):
             pred_idx = int(pred_raw[0])
         else:
-            pred_idx = int(pred_raw)  # skalar
+            pred_idx = int(pred_raw)
         
-        label = le.inverse_transform([pred_idx])[0].upper()
+        label = le.inverse_transform([pred_idx])[0].lower()  # simpan lowercase
         confidence = None
         proba = None
         if hasattr(model, "predict_proba"):
@@ -293,9 +274,14 @@ if submitted:
     X_final = np.hstack([X_num_scaled, X_cat_encoded])
 
     results = predict_all_models(models, X_final, le)
-    results_df = pd.DataFrame([{k: v for k, v in r.items() if k != 'probabilities'} for r in results]).set_index("Model")
+    # Buat dataframe untuk tampilan (ubah label menjadi huruf besar untuk tampilan)
+    results_df = pd.DataFrame([{
+        "Model": r["Model"],
+        "Prediksi": r["Prediksi"].upper(),
+        "Confidence (%)": r["Confidence (%)"]
+    } for r in results]).set_index("Model")
 
-    # --- Tabs untuk tampilan rapi ---
+    # --- Tabs ---
     tab1, tab2, tab3 = st.tabs(["Model Comparison", "Class Probabilities", "Input & Metadata"])
 
     with tab1:
@@ -303,20 +289,25 @@ if submitted:
         cols = st.columns(3, gap="large")
         for idx, res in enumerate(results):
             model_name = res["Model"]
-            label = res["Prediksi"]
+            label = res["Prediksi"].upper()
             confidence = res["Confidence (%)"]
-            if label in ["EXCELLENT", "GOOD"]:
+            # Warna berdasarkan label asli (lowercase)
+            if label in ["EXCELENT", "GOOD"]:
                 color = "#15803d"
                 icon = "bi bi-check-circle-fill"
                 bg_light = "#dcfce7"
-            elif label in ["MODERATE", "FAIR"]:
+            elif label == "MEDIUM":
                 color = "#d97706"
                 icon = "bi bi-exclamation-triangle-fill"
                 bg_light = "#fef3c7"
-            else:
+            elif label == "BAD":
                 color = "#b91c1c"
                 icon = "bi bi-x-circle-fill"
                 bg_light = "#fee2e2"
+            else:  # VERY_BAD
+                color = "#7f1d1d"
+                icon = "bi bi-skull"
+                bg_light = "#fecaca"
             with cols[idx]:
                 st.markdown(f"""
                 <div class='model-card' style="border-top: 4px solid {color};">
@@ -367,8 +358,10 @@ if submitted:
             best_model = models[best_model_name]
             if hasattr(best_model, "predict_proba"):
                 proba_all = best_model.predict_proba(X_final)[0] * 100
+                # Gunakan kelas asli dari label encoder
+                original_classes = le.classes_
                 proba_df = pd.DataFrame({
-                    "Kelas": [c.upper() for c in le.classes_],
+                    "Kelas": [c.capitalize() if c != 'very_bad' else 'Very Bad' for c in original_classes],
                     "Probabilitas (%)": proba_all
                 }).sort_values("Probabilitas (%)", ascending=False)
                 st.markdown(f"<p><i class='bi bi-star-fill'></i> Model terbaik: <strong>{best_model_name}</strong> (confidence tertinggi)</p>", unsafe_allow_html=True)
