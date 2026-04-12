@@ -5,130 +5,150 @@ import pickle
 import json
 import os
 
-# Konfigurasi Halaman Profesional
+# Konfigurasi Halaman - Wide Mode untuk perbandingan kolom
 st.set_page_config(
-    page_title="Sistem Klasifikasi Kualitas Air",
-    layout="centered", # Menggunakan layout centered agar fokus di tengah
+    page_title="Dashboard Analisis Klasifikasi Kualitas Air",
+    layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS untuk tampilan akademis
+# Style CSS Akademis dan Profesional
 st.markdown("""
     <style>
-    .main {
-        background-color: #ffffff;
-    }
-    h1 {
+    .main { background-color: #f8f9fa; }
+    .report-title {
         color: #1E3A8A;
-        font-family: 'Times New Roman', serif;
+        font-family: 'Serif';
+        font-weight: bold;
         text-align: center;
-        border-bottom: 2px solid #1E3A8A;
-        padding-bottom: 10px;
+        border-bottom: 3px solid #1E3A8A;
+        padding-bottom: 20px;
+        margin-bottom: 25px;
     }
-    .stButton>button {
-        width: 100%;
-        border-radius: 5px;
-        height: 3em;
-        background-color: #1E3A8A;
-        color: white;
+    .model-card {
+        background-color: white;
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid #e0e0e0;
+        text-align: center;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+    }
+    .stNumberInput, .stSelectbox {
+        font-size: 14px;
     }
     </style>
     """, unsafe_allow_html=True)
 
 @st.cache_resource
-def load_assets():
-    model_path = "models"
-    with open(os.path.join(model_path, 'feature_info.json'), 'r') as f:
+def load_all_assets():
+    path = "models"
+    # Metadata
+    with open(os.path.join(path, 'feature_info.json'), 'r') as f:
         info = json.load(f)
     
-    scaler = pickle.load(open(os.path.join(model_path, 'scaler.pkl'), 'rb'))
-    ohe = pickle.load(open(os.path.join(model_path, 'ohe.pkl'), 'rb'))
-    le = pickle.load(open(os.path.join(model_path, 'label_encoder.pkl'), 'rb'))
+    # Pre-processing
+    scaler = pickle.load(open(os.path.join(path, 'scaler.pkl'), 'rb'))
+    ohe = pickle.load(open(os.path.join(path, 'ohe.pkl'), 'rb'))
+    le = pickle.load(open(os.path.join(path, 'label_encoder.pkl'), 'rb'))
     
-    # Load Best Model (CatBoost)
-    model_file = info['best_model_name'].lower() + ".pkl"
-    model = pickle.load(open(os.path.join(model_path, model_file), 'rb'))
+    # Models
+    models = {
+        "CatBoost": pickle.load(open(os.path.join(path, 'catboost.pkl'), 'rb')),
+        "LightGBM": pickle.load(open(os.path.join(path, 'lightgbm.pkl'), 'rb')),
+        "HistGradientBoosting": pickle.load(open(os.path.join(path, 'histgradientboosting.pkl'), 'rb'))
+    }
     
-    return info, scaler, ohe, le, model
+    return info, scaler, ohe, le, models
 
 try:
-    info, scaler, ohe, le, model = load_assets()
+    info, scaler, ohe, le, models = load_all_assets()
 except Exception as e:
-    st.error(f"Sistem gagal memuat modul model: {e}")
+    st.error(f"Kesalahan Fatal: Gagal memuat komponen model. Detail: {e}")
     st.stop()
 
-# Header Utama
-st.title("Sistem Pakar Klasifikasi Kualitas Air")
-st.markdown(f"""
-    **Informasi Model:** {info['best_model_name']} Classifier  
-    **Akurasi Pengujian:** {info['best_accuracy']:.2%}  
-    ---
-""")
+# Header
+st.markdown("<h1 class='report-title'>Sistem Klasifikasi Kualitas Air Berbasis Pembelajaran Mesin</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Analisis Perbandingan Algoritma Gradient Boosting untuk Penentuan Status Mutu Air</p>", unsafe_allow_html=True)
 
-# Bagian Form Input di Tengah Halaman
-st.subheader("Parameter Input Laboratorium")
-with st.form("classification_form"):
-    
-    # Mengatur input numerik dalam 3 kolom agar rapi
+# Container Input
+st.markdown("### 1. Parameter Masukan (Data Laboratorium)")
+st.info("Nilai default di bawah ini diset untuk pengujian cepat (Normal/Good condition).")
+
+with st.form("input_form"):
+    # Penentuan nilai default untuk uji cepat
+    default_vals = {
+        'ph': 7.20, 'do': 6.50, 'bod': 2.10, 'tc': 50.0, 
+        'tn': 1.20, 'tp': 0.05, 'ts': 150.0, 'turb': 4.50, 'temp': 25.0
+    }
+
     col1, col2, col3 = st.columns(3)
-    
     user_inputs = {}
-    
-    # Distribusi input numerik ke kolom
+
+    # Distribusi input numerik
     for i, col_name in enumerate(info['numeric_cols']):
-        current_col = [col1, col2, col3][i % 3]
-        user_inputs[col_name] = current_col.number_input(
+        target_col = [col1, col2, col3][i % 3]
+        user_inputs[col_name] = target_col.number_input(
             f"{col_name.upper()}", 
-            value=0.0, 
-            format="%.4f",
-            help=f"Masukkan nilai konsentrasi {col_name}"
+            value=default_vals.get(col_name, 0.0), 
+            format="%.2f"
         )
 
-    # Input Kategorikal di bawahnya
     st.markdown("---")
-    for col_name in info['categorical_cols']:
-        options = ohe.categories_[0].tolist()
-        user_inputs[col_name] = st.selectbox(
-            f"Kategori {col_name.replace('_', ' ').title()}", 
-            options
-        )
+    # Input Kategorikal
+    land_use_options = ohe.categories_[0].tolist()
+    user_inputs['macro_land_use'] = st.selectbox(
+        "Klasifikasi Penggunaan Lahan (Macro Land Use)", 
+        land_use_options,
+        index=0
+    )
 
-    # Tombol Aksi
-    submit_button = st.form_submit_button("Lakukan Klasifikasi")
+    submit = st.form_submit_button("JALANKAN PROSES KLASIFIKASI")
 
-if submit_button:
-    # Pre-processing
+if submit:
+    # --- Pre-processing Data ---
     input_df = pd.DataFrame([user_inputs])
-    
     X_num = input_df[info['numeric_cols']]
-    X_cat = input_df[info['categorical_cols']]
+    X_cat = input_df[['macro_land_use']]
     
     X_num_scaled = scaler.transform(X_num)
     X_cat_encoded = ohe.transform(X_cat)
-    
     X_final = np.hstack([X_num_scaled, X_cat_encoded])
-    
-    # Proses Klasifikasi
-    prediction_idx = model.predict(X_final)
-    
-    if isinstance(prediction_idx, np.ndarray):
-        prediction_idx = int(prediction_idx.flatten()[0])
-        
-    result_label = le.inverse_transform([prediction_idx])[0]
-    
-    # Tampilan Hasil Klasifikasi
-    st.markdown("### Hasil Analisis Sistem")
-    
-    # Logika warna berdasarkan tingkat kualitas
-    if result_label.lower() in ['excellent', 'good']:
-        st.success(f"Klasifikasi Kualitas: **{result_label.upper()}**")
-    elif result_label.lower() in ['medium']:
-        st.info(f"Klasifikasi Kualitas: **{result_label.upper()}**")
-    else:
-        st.error(f"Klasifikasi Kualitas: **{result_label.upper()}**")
-    
-    st.caption("Hasil klasifikasi berdasarkan data masukan laboratorium menggunakan algoritma mesin pembelajaran.")
 
-# Footer Akademis
-st.markdown("---")
-st.markdown("<p style='text-align: center; color: gray;'>Universitas Halu Oleo - Teknik Informatika</p>", unsafe_allow_html=True)
+    # --- Bagian Hasil Analisis ---
+    st.markdown("### 2. Laporan Hasil Klasifikasi Komparatif")
+    
+    res_col1, res_col2, res_col3 = st.columns(3)
+    cols = [res_col1, res_col2, res_col3]
+
+    for idx, (name, model) in enumerate(models.items()):
+        # Klasifikasi
+        raw_pred = model.predict(X_final)
+        
+        # Penanganan perbedaan output format antar library
+        if isinstance(raw_pred, np.ndarray):
+            pred_idx = int(raw_pred.flatten()[0]) if raw_pred.ndim > 1 else int(raw_pred[0])
+        else:
+            pred_idx = int(raw_pred)
+            
+        label = le.inverse_transform([pred_idx])[0].upper()
+        
+        # Visualisasi per kolom
+        with cols[idx]:
+            st.markdown(f"""
+                <div class='model-card'>
+                    <small>Algoritma</small>
+                    <h4>{name}</h4>
+                    <hr>
+                    <p>Status Klasifikasi:</p>
+                    <h2 style='color: {"#16a34a" if label in ["EXCELENT", "GOOD"] else "#dc2626"};'>{label}</h2>
+                </div>
+            """, unsafe_allow_html=True)
+
+    # --- Detail Teknis ---
+    st.markdown("---")
+    with st.expander("Lihat Metadata Vektor Input"):
+        st.write("Data yang telah dinormalisasi dan diencode untuk mesin:")
+        st.code(str(X_final))
+
+# Footer
+st.markdown("<br><br><p style='text-align: center; color: #6b7280; font-size: 12px;'>Laboratorium Komputasi - Teknik Informatika - Universitas Halu Oleo</p>", unsafe_allow_html=True)
